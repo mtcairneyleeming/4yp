@@ -1,0 +1,15 @@
+name: jax_numpyro_env
+channels:
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - jax=0.4.2 #  - jax[cuda]=0.4.2
+  - jaxlib=0.4.1 #=cuda112py310*
+  - flax=0.6.1
+  - numpyro=0.11.0
+  - matplotlib
+  - jupyterlab
+  - arviz
+  - dill
+  - tqdm
