@@ -1,0 +1,5 @@
+{
+    "python.formatting.provider": "black",
+    "notebook.output.textLineLimit": 120,
+    "python.analysis.typeCheckingMode": "off"
+}
