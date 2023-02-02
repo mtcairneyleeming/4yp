@@ -11,7 +11,7 @@
 
 
 
-export WORKING_DIR=$DATA/4yp/arc
+export WORKING_DIR=$DATA/4yp
 export CONDA_PREFIX=/data/coml-hawkes/lady6235/.conda/envs/jax_numpyro_env
 
 
@@ -28,9 +28,7 @@ mkdir output # create an output folder, which we will copy across to $DATA when 
 mkdir code
 
 # copy across only what we need:
-cp -R $WORKING_DIR/code   . # the code we've actually written
-
-cp -R $WORKING_DIR/data   . # any pre-downloaded data as well
+cp -R $WORKING_DIR   . # the code we've actually written
 
 echo "Environment variables:"
 printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus etc.)
@@ -38,7 +36,7 @@ echo "Files copied across:"
 tree
 
 
-python code/code_01.py
+python 01_code.py
 
 
 # copy the output directory back across to $DATA

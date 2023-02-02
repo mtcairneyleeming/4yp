@@ -14,7 +14,7 @@ from numpyro.diagnostics import hpdi
 
 from reusable.kernels import esq_kernel
 
-import util
+import arc.util as util
 
 args = {
     # GP prior configuration
