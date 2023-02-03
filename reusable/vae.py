@@ -8,6 +8,7 @@ The VAE itself, plus suitable wrappings of it for use in SVI and MCMC
 
 import flax.linen as nn
 import jax.numpy as jnp
+import jax.random as random
 
 from numpyro.contrib.module import flax_module
 import numpyro
@@ -15,12 +16,17 @@ import numpyro.distributions as dist
 
 
 class VAE_Encoder(nn.Module):
-    hidden_dim1: int
+
+    hidden_dim1 :int
     hidden_dim2: int
     latent_dim: int
+    conditional = False
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, c=None):
+        if self.conditional:
+            c = c[:, None] # note this expands the dimensions!
+            x = jnp.concatenate((x,c), axis=-1)
         x = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="ENC Hidden1")(x)
         x = nn.relu(x)
         x = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="ENC Hidden2")(x)
@@ -38,10 +44,16 @@ class VAE_Decoder(nn.Module):
     hidden_dim1: int
     hidden_dim2: int
     out_dim: int
+    conditional : bool
 
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, c=None):
+        if self.conditional:
+            c = c[:, None] # note this expands the dimensions!
+            x = jnp.concatenate((x,c), axis=-1)
+
+
         x = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="DEC Hidden1")(x)
         x = nn.relu(x)
         x = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="DEC Hidden2")(x)
@@ -86,16 +98,16 @@ def vae_guide(batch, hidden_dim1, hidden_dim2, latent_dim, vae_var):
 
 
 
-def vae_sample(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params):
+def vae_sample(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, conditional=False):
     z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
-    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
+    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim, conditional=conditional)  
     f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z))
     return f
 
 
-def vae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, y=None, obs_idx=None):
+def vae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, conditional=False, y=None, obs_idx=None):
     z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
-    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
+    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim, conditional=conditional)  
 
     f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z))
     sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
@@ -104,3 +116,4 @@ def vae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, y=No
         numpyro.sample("y_pred", dist.Normal(f, sigma))
     else: # during inference
         numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
+
