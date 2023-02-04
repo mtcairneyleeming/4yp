@@ -7,9 +7,13 @@ dependencies:
   - jax[cuda]=0.4.2
   - jaxlib=0.4.1=cuda112py310*
   - flax=0.6.1
+  - optax=0.1.4
   - numpyro=0.11.0
   - matplotlib
   - jupyterlab
   - arviz
   - dill
 #  - tqdm
+  - pip
+  - pip:
+      - clu
