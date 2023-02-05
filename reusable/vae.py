@@ -84,7 +84,7 @@ class VAE(nn.Module):
             rng_key = self.make_rng("train_latent_dist")
             std = jnp.exp(z_sd / 2)
             eps = random.normal(rng_key, std.shape)
-            x_sample = (eps.mul(std).add_(z_mu))
+            x_sample = jnp.add( jnp.multiply(eps, std), z_mu)
         else:
             x_sample =  z_mu
 

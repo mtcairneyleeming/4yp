@@ -1,7 +1,7 @@
 from clu import metrics
 from flax.training import train_state  # Useful dataclass to keep train state
 from flax import struct    
-
+import jax
 
 @struct.dataclass
 class Metrics(metrics.Collection):
@@ -11,3 +11,4 @@ class Metrics(metrics.Collection):
 
 class TrainState(train_state.TrainState):
   metrics: Metrics
+  key: jax.random.KeyArray
