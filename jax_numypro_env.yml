@@ -14,6 +14,7 @@ dependencies:
   - arviz
   - dill
   - tqdm
+  - ipywidgets
   - pip
   - pip:
       - clu
