@@ -22,9 +22,13 @@ def euclidian_dist(x,z):
 
 
 def esq_kernel(x,z, var, length, noise=0, jitter=1.0e-6):
-
+    """For GPs only!!! as it returns a matrix"""
     dist = euclidian_dist(x, z)
     deltaXsq = jnp.power(dist/ length, 2.0)
     k = var * jnp.exp(-0.5 * deltaXsq)
     k += (noise + jitter) * jnp.eye(x.shape[0])
     return k
+
+
+def rbf_kernel(x,z, length):
+    return jnp.exp(- 1/length**2 * jnp.dot(x-z, x-z))
