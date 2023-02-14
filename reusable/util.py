@@ -18,5 +18,14 @@ def save_args(name, args):
         dill.dump(args, f)
 
 
+def decoder_filename(file_code, args, suffix="_decoder"):
+    """Return a file name that reflects the params used to generate the saved weights. If the structure of args changes, this will gracefully fail,
+     as it uses a default value if any of the params change."""
+    
+    
+    param_names = "hidden_dim1", "hidden_dim2", "latent_dim", "vae_var", "num_epochs", "learning_rate", "batch_size", "train_num_batches"
+    vals = []
+    for p in param_names:
+        vals.append(str(args.get(p, ".")))
 
-
+    return f"{file_code}_" + "_".join(vals) + suffix
