@@ -90,7 +90,8 @@ def run_training(
 
         metrics = compute_epoch_metrics(test_state, test_draws, train_draws, train_output, test_output)
 
-        metrics["train_loss"] = jnp.mean(jnp.array(batch_losses))
+        metrics["train_loss"] = batch_losses[-1]
+        metrics["train_avg_loss"] = jnp.mean(jnp.array(batch_losses))
         metrics["test_loss"] = compute_batch_loss(state=test_state, batch=test_draws, loss_fn=loss_fn, training=False)
 
         for metric, value in metrics.items():
