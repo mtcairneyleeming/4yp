@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 from numpyro.diagnostics import hpdi
-import numpy as np
 
 
 def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
@@ -185,6 +184,42 @@ def compare_inference_steps(
         axs[i + 1].set_title("n datapoints =" + str(len(x_obss[i])))
         axs[i + 1].legend(loc=4)
         axs[i + 1].set_ylim([-2.5, 2.5])
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+def plot_lengthscales(lss, title, ax=None, save_path=None):
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+    ax.hist(lss)
+    ax.set_xlim(-0.5,1.5)
+    ax.set_xlabel("$l$")
+    ax.set_title(title)
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+def plot_training(test, train, title, note="", ax=None, save_path=None):
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+    assert(len(test) == len(train))
+    
+    l = jnp.arange(len(test))
+
+    ax.plot(l, test, label="test " + note)
+    ax.plot(l, train, label="train " + note)
+    ax.set_xlabel("epochs")
+    ax.set_ylabel(note)
+    ax.set_title(title)
+    ax.legend()
+
+
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
