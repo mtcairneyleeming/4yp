@@ -18,6 +18,21 @@ def gen_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, dra
     draws = jnp.reshape(draws, (num_batches, batch_size, -1))  # note the last shape size will be args["n"]
     return draws
 
+def gen_labelled_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y", label_access="c"):
+    pred = Predictive(gp_model, num_samples=num_batches * batch_size)
+    full_draws = pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=1e-5)
+    
+    function_vals = full_draws[draw_access]
+    labels = full_draws[label_access]
+    labels = labels[:, None] # expands array size
+
+    
+    draws = jnp.concatenate((function_vals,labels), axis=-1)
+
+    # batch these [note above ensures there are the right no. of elements], so the reshape works perfectly
+    draws = jnp.reshape(draws, (num_batches, batch_size, -1))  # note the last shape size will be args["n"] + 1, for the labels
+    return draws
+
 
 class SimpleTrainState(train_state.TrainState):
     key: jax.random.KeyArray
@@ -85,14 +100,14 @@ def run_training(
             batch_losses.append(compute_batch_loss(state=state, batch=train_draws[j], loss_fn=loss_fn, training=False))
 
         test_state = state
-        test_output = test_state.apply_fn({"params": test_state.params}, test_draws, training=False)
+        test_output = test_state.apply_fn({"params": test_state.params}, test_draws[-1], training=False)
         train_output = test_state.apply_fn({"params": test_state.params}, train_draws[-1], training=False)
 
         metrics = compute_epoch_metrics(test_state, test_draws, train_draws, train_output, test_output)
 
         metrics["train_loss"] = batch_losses[-1]
         metrics["train_avg_loss"] = jnp.mean(jnp.array(batch_losses))
-        metrics["test_loss"] = compute_batch_loss(state=test_state, batch=test_draws, loss_fn=loss_fn, training=False)
+        metrics["test_loss"] = compute_batch_loss(state=test_state, batch=test_draws[-1], loss_fn=loss_fn, training=False)
 
         for metric, value in metrics.items():
             if i == 0 and not metric in metrics_history:

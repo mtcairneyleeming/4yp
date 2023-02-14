@@ -20,13 +20,9 @@ class VAE_Encoder(nn.Module):
     hidden_dim1 :int
     hidden_dim2: int
     latent_dim: int
-    conditional: False
 
     @nn.compact
-    def __call__(self, x, c=None):
-        if self.conditional:
-            c = c[:, None] # note this expands the dimensions!
-            x = jnp.concatenate((x,c), axis=-1)
+    def __call__(self, x):
         x = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="ENC Hidden1")(x)
         x = nn.relu(x)
         x = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="ENC Hidden2")(x)
@@ -44,16 +40,10 @@ class VAE_Decoder(nn.Module):
     hidden_dim1: int
     hidden_dim2: int
     out_dim: int
-    conditional : bool
 
 
     @nn.compact
-    def __call__(self, x, c=None):
-        if self.conditional:
-            c = c[:, None] # note this expands the dimensions!
-            x = jnp.concatenate((x,c), axis=-1)
-
-
+    def __call__(self, x): 
         x = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="DEC Hidden1")(x)
         x = nn.relu(x)
         x = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="DEC Hidden2")(x)
@@ -75,8 +65,8 @@ class VAE(nn.Module):
 
 
     @nn.compact
-    def __call__(self, x, c=None, training=False):
-        z_mu, z_sd = VAE_Encoder(hidden_dim1=self.hidden_dim1, hidden_dim2=self.hidden_dim2, latent_dim=self.latent_dim, conditional=self.conditional) (x, c)
+    def __call__(self, x, training=False):
+        z_mu, z_sd = VAE_Encoder(hidden_dim1=self.hidden_dim1, hidden_dim2=self.hidden_dim2, latent_dim=self.latent_dim) (x) 
         '''During training random sample from the learned ZDIMS-dimensional
            normal distribution; during inference its mean.
         '''
@@ -88,7 +78,10 @@ class VAE(nn.Module):
         else:
             x_sample =  z_mu
 
-        generated_x = VAE_Decoder(hidden_dim1=self.hidden_dim1, hidden_dim2=self.hidden_dim2, out_dim=self.out_dim, conditional=self.conditional)(x_sample, c)
+        if self.conditional:
+            x_sample = jnp.concatenate((x_sample, x[:, -1:]), axis=-1) # x[-1] will be the label, c
+
+        generated_x = VAE_Decoder(hidden_dim1=self.hidden_dim1, hidden_dim2=self.hidden_dim2, out_dim=self.out_dim)(x_sample) 
         return x, generated_x, z_mu,z_sd
 
 
@@ -130,16 +123,28 @@ def vae_guide(batch, hidden_dim1, hidden_dim2, latent_dim, vae_var):
 
 
 
-def vae_sample(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, conditional=False):
+def vae_sample(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params):
     z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
-    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim, conditional=conditional)  
+    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
     f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z))
     return f
 
-
-def vae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, conditional=False, y=None, obs_idx=None):
+def cvae_sample(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, condition=None):
     z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
-    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim, conditional=conditional)  
+
+    if condition is None:
+        c = numpyro.sample("c", dist.Bernoulli(0.5)).reshape(1) 
+    else:
+        c = numpyro.deterministic("c", jnp.array([condition]))
+    z_c = numpyro.deterministic("z_c", jnp.concatenate([z, c], axis=0))
+    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
+    f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z_c))
+    return f
+
+
+def vae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, y=None, obs_idx=None):
+    z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
+    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
 
     f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z))
     sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
