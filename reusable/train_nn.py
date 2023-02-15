@@ -1,3 +1,4 @@
+
 from flax.training import train_state  # Useful dataclass to keep train state
 from flax import struct
 import jax
@@ -121,13 +122,3 @@ def run_training(
 
 # Kept for notebook 02, but not terribly useful in general
 
-
-@struct.dataclass
-class Metrics(metrics.Collection):
-
-    loss: metrics.Average.from_output("loss")
-
-
-class TrainState(train_state.TrainState):
-    metrics: Metrics
-    key: jax.random.KeyArray
