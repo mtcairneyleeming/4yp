@@ -1,4 +1,3 @@
-from clu import metrics
 from flax.training import train_state  # Useful dataclass to keep train state
 from flax import struct
 import jax

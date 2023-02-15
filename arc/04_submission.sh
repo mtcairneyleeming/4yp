@@ -1,7 +1,7 @@
 #! /bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
-#SBATCH --job-name=4yp_01
+#SBATCH --job-name=4yp_04
 #SBATCH --time=06:00:00
 #SBATCH --partition=short
 #SBATCH -o ./arc/reports/slurm-%j.out # STDOUT
