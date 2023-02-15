@@ -18,6 +18,11 @@ export FILE_TO_RUN=04_code.py
 
 
 module load Mamba # note we are not using Mamba to build the environment, we just need to load into it
+module load CUDA/11.6.0
+
+echo "CUDA Devices(s) allocated: $CUDA_VISIBLE_DEVICES"
+nvidia-smi
+
 
 # set the Anaconda environment, and activate it:
 source activate $CONDA_PREFIX
