@@ -5,15 +5,23 @@
 # For a 1D GP
 
 # %%
+print("Starting", flush=True)
 from jax import random
+print("Starting jax", flush=True)
+
 import jax.numpy as jnp
 
+print("Starting jnp", flush=True)
 import time
+print("Starting time", flush=True)
 import dill
+print("Starting dill", flush=True)
 from flax import serialization
 
 # Numpyro
+print("Starting lfa", flush=True)
 import numpyro
+print("Starting numpyro", flush=True)
 from numpyro.infer import MCMC, NUTS, init_to_median, Predictive
 
 
@@ -21,7 +29,10 @@ from numpyro.infer import MCMC, NUTS, init_to_median, Predictive
 numpyro.set_host_device_count(3)
 
 # %%
+print("Starting numpyro infer", flush=True)
 from reusable.kernels import esq_kernel, rbf_kernel
+
+print("Loaded", flush=True)
 
 args = {
     # GP prior configuration
@@ -42,9 +53,9 @@ args.update({ # so we can use the definition of n to define x
     "mmd_kernel": lambda x,z: rbf_kernel(x,z, 4.0),
 
     # learning
-    "num_epochs": 125,
+    "num_epochs": 100,
     "learning_rate": 1.0e-4,
-    "batch_size": 200,
+    "batch_size": 400,
     "train_num_batches": 500,
     "test_num_batches": 1,
 
@@ -63,6 +74,7 @@ from reusable.util import save_args
 
 save_args("04", args)
 
+print("Saved args", flush=True)
 
 rng_key, _ = random.split(random.PRNGKey(4))
 
@@ -73,14 +85,16 @@ rng_key, _ = random.split(random.PRNGKey(4))
 if not args["pretrained_vae"]:
     from reusable.gp import OneDGP
     from reusable.train_nn import gen_gp_batches
+    print(" IMports for Gen data", flush=True)
 
-    
     rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 
     train_draws = gen_gp_batches(args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train)
+    print("Done train gen data", flush=True)
     test_draws = gen_gp_batches(args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"]* args["batch_size"], rng_key_test)
 
 
+print("Gen data", flush=True)
 
 # %%
 from reusable.vae import VAE
@@ -109,7 +123,7 @@ from reusable.vae import vae_sample
 from flax.core.frozen_dict import freeze
 from functools import partial
 
-from reusable.mmd import mmd
+from reusable.mmd import orig_mmd
 
 @jax.jit
 def RCL(y, reconstructed_y, mean, log_sd):
@@ -124,7 +138,7 @@ def KLD(y, reconstructed_y, mean, log_sd):
 
 @jax.jit
 def MMD(y, reconstructed_y, mean, log_sd):
-    return mmd(y, reconstructed_y, args["mmd_kernel"])
+    return orig_mmd(y, reconstructed_y, args["mmd_kernel"])
 
 @jax.jit
 def rcl_kld(*args):
@@ -140,7 +154,7 @@ def kld_50mmd(*args):
 
 
 def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_samples, train_output, test_output):
-
+    print("epoch done", flush=True)
     current_metric_key = jax.random.fold_in(key=final_state.key, data=2 * final_state.step + 1)
 
     vae_draws = Predictive(vae_sample, num_samples=args["batch_size"])(
@@ -153,8 +167,8 @@ def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_sam
     )["f"]
 
     metrics = {
-        "train_mmd": mmd(vae_draws, train_samples[-1], args["mmd_kernel"]),
-        "test_mmd": mmd(vae_draws, test_samples[-1], args["mmd_kernel"]),
+        "train_mmd": orig_mmd(vae_draws, train_samples[-1], args["mmd_kernel"]),
+        "test_mmd": orig_mmd(vae_draws, test_samples[-1], args["mmd_kernel"]),
         "train_kld": KLD(*train_output),
         "test_kld": KLD(*test_output),
         "train_rcl": RCL(*train_output),
@@ -183,12 +197,13 @@ _, rng_key_predict = random.split(random.PRNGKey(2))
 plot_gp_predictive = Predictive(OneDGP, num_samples=1000)
 gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel = args["gp_kernel"], jitter=1e-5)['y']
 
+print("Starting training", flush=True)
 
 saved_states  = {}
 if not args["pretrained_vae"]:
     loss_fns = [rcl_kld_50mmd, kld_50mmd, rcl_kld]
     for loss_fn in loss_fns:
-        print( loss_fn.__name__)
+        print( loss_fn.__name__, flush=True)
         final_state, metrics_history = run_training(
             loss_fn, compute_epoch_metrics, args["num_epochs"], train_draws, test_draws, state
         )
@@ -217,7 +232,7 @@ if not args["pretrained_vae"]:
             
 
 
-        compare_draws(args["x"], gp_draws, vae_draws, "GP priors we want to encode", "Priors learnt by VAE w/ loss" + loss_fn.__name__, '$y=f_{GP}(x)$', '$y=f_{VAE}(x)$', save_path="gen_plots/01_prior_comp.png")
+        compare_draws(args["x"], gp_draws, vae_draws, "GP priors we want to encode", "Priors learnt by VAE w/ loss" + loss_fn.__name__, '$y=f_{GP}(x)$', '$y=f_{VAE}(x)$')
         plt.show()
 
         file_path = f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__)}'
@@ -233,6 +248,6 @@ if not args["pretrained_vae"]:
         file_path = f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+"_metrics_hist")}'
 
         with open(file_path, 'wb') as file:
-            file.write(dill.dump(metrics_history))
+            dill.dump(metrics_history, file)
 
 

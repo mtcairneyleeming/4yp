@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --job-name=4yp_04
-#SBATCH --time=06:00:00
+#SBATCH --time=12:00:00
 #SBATCH --partition=short
 #SBATCH -o ./arc/reports/slurm-%j.out # STDOUT
 #SBATCH --mail-type=BEGIN,END
@@ -12,7 +12,7 @@
 
 
 
-export WORKING_DIR=$DATA/4yp
+export WORKING_DIR=/data/coml-hawkes/lady6235/4yp
 export CONDA_PREFIX=/data/coml-hawkes/lady6235/jax_numpyro_env
 export FILE_TO_RUN=04_code.py
 
@@ -31,7 +31,6 @@ source activate $CONDA_PREFIX
 # change to the temporary $SCRATCH directory, where we can create whatever files we want
 cd $SCRATCH
 mkdir output # create an output folder, which we will copy across to $DATA when done
-mkdir code
 
 # copy across only what we need:
 cp -R $WORKING_DIR/reusable   	. # the code we've actually written
@@ -44,7 +43,9 @@ printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus 
 echo "Files copied across:"
 tree
 
-
+echo $FILE_TO_RUN
+mamba list
+python --version
 python ./$FILE_TO_RUN
 
 
