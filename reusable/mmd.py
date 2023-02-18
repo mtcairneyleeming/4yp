@@ -1,12 +1,14 @@
+"""Implementations of Empirical MMD - e.g. see lemma 6 of https://jmlr.csail.mit.edu/papers/volume13/gretton12a/gretton12a.pdf"""
+
+
 from functools import partial
 import jax.numpy as jnp
 import jax
 
 
 @partial(jax.jit, static_argnames=["kernel_f"])
-def mmd(xs, ys, kernel_f):
-    """memory-efficient (hopefully)
-    implementing lemma 6 of https://jmlr.csail.mit.edu/papers/volume13/gretton12a/gretton12a.pdf"""
+def mmd_mem_efficient(xs, ys, kernel_f):
+    """Memory-efficient version, though very slow differentiation"""
 
     n, _ = xs.shape  # so n is the number of vectors, and d the dimension of each vector
     m, _ = ys.shape
@@ -29,9 +31,8 @@ def mmd(xs, ys, kernel_f):
 
 
 @partial(jax.jit, static_argnames=["kernel_f"])
-def orig_mmd(xs, ys, kernel_f):
-    """matrix-based implementation - still uses a lot of memory!
-    implementing lemma 6 of https://jmlr.csail.mit.edu/papers/volume13/gretton12a/gretton12a.pdf"""
+def mmd_matrix_impl(xs, ys, kernel_f):
+    """Matrix implementation: uses lots of memory, suitable for differentiation"""
 
     # Generate a kernel matrix by looping over each entry in x, y (both gm1, gm are functions!)
     gm1 = jax.vmap(lambda x, y: kernel_f(x, y), (0, None), 0)
