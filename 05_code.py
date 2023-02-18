@@ -37,8 +37,8 @@ args.update(
         # learning
         "num_epochs": 150,
         "learning_rate": 1.0e-4,
-        "batch_size": 300,
-        "train_num_batches": 400,
+        "batch_size": 400,
+        "train_num_batches": 100,
         "test_num_batches": 1,
         # MCMC parameters
         "num_warmup": 1000,
