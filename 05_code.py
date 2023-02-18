@@ -138,6 +138,21 @@ def MMD_rbf_ls_1_2_4_16_32(y, reconstructed_y):
         + rbf_kernel(x, z, 32.0),
     )
 
+@jax.jit
+def MMD_rbf_ls_01_025_05_1_2_4_16_32(y, reconstructed_y):
+    return mmd_matrix_impl(
+        y,
+        reconstructed_y,
+        lambda x, z: rbf_kernel(x, z, 0.1)
+        + rbf_kernel(x, z, 0.25)
+        + rbf_kernel(x, z, 0.5)
+        + rbf_kernel(x, z, 1.0)
+        + rbf_kernel(x, z, 2.0)
+        + rbf_kernel(x, z, 4.0)
+        + rbf_kernel(x, z, 16.0)
+        + rbf_kernel(x, z, 32.0),
+    )
+
 
 from reusable.train_nn import run_training
 
@@ -148,12 +163,20 @@ from reusable.util import decoder_filename, get_savepath
 
 print("Starting training", flush=True)
 
+# Run 1
+# loss_fns = (
+#     [MMD_rbf_customls(l) for l in [0.5, 1, 2, 8, 16]]
+#     + [MMD_rbf_ls_1_2_4_16_32]
+#     + [MMD_rql_custom(1, l ) for l in [0.25, 0.5, 1, 8, 16]]
+#     + [MMD_rql_custom(4, l) for l in [0.25, 0.5, 1, 8, 16]]
+# )
 
+#Run 2
 loss_fns = (
-    [MMD_rbf_customls(l) for l in [0.5, 1, 2, 8, 16]]
-    + [MMD_rbf_ls_1_2_4_16_32]
-    + [MMD_rql_custom(1, l ) for l in [0.25, 0.5, 1, 8, 16]]
-    + [MMD_rql_custom(4, l) for l in [0.25, 0.25, 1, 8, 16]]
+    [MMD_rbf_customls(l) for l in [4, 6, 8, 10, 12]]
+    + [MMD_rbf_ls_01_025_05_1_2_4_16_32]
+    + [MMD_rql_custom(l, 0.25 ) for l in [0.25, 0.5, 1, 4, 8, 16]]
+    + [MMD_rql_custom(l, 0.1) for l in [0.25, 0.5, 1, 4, 8, 16]]
 )
 args["loss_functions"] = [x.__name__ for x in loss_fns]
 
