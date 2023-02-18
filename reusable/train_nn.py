@@ -89,8 +89,8 @@ def run_training(
             metrics_history[metric] = metrics_history[metric].at[i].set(value)
 
         if i % 5 == 0:
-            print(f"epoch: {(i+1) }, {metrics}")
-    print(f"Done, in {time.time()-start}s ")
+            print(f"epoch: {(i+1) }, {metrics}", flush=True)
+    print(f"Done, in {time.time()-start}s ", flush=True)
     return state, metrics_history
 
 
