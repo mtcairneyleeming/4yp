@@ -35,10 +35,10 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 1,
+        "num_epochs": 150,
         "learning_rate": 1.0e-4,
-        "batch_size": 2,
-        "train_num_batches": 5,
+        "batch_size": 200,
+        "train_num_batches": 500,
         "test_num_batches": 1,
         # MCMC parameters
         "num_warmup": 1000,
@@ -49,7 +49,7 @@ args.update(
 
         "mmd_rbf_ls": 4.0,
         "mmd_rq_ls": 4.0,
-        "mmd_rq_scale": 0.5 # TODO: JUSTIFY?
+        "mmd_rq_scale": 1 # TODO: JUSTIFY?
     }
 )
 

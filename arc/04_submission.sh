@@ -8,7 +8,7 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
 #SBATCH --mem=64G
-#SBATCH --gres=gpu:1
+#comment out SBATCH --gres=gpu:1
 
 
 
