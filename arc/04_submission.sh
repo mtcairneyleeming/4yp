@@ -4,11 +4,17 @@
 #SBATCH --job-name=4yp_04
 #SBATCH --time=12:00:00
 #SBATCH --partition=short
-#SBATCH -o ./arc/reports/slurm-%j.out # STDOUT
+#SBATCH --output ./arc/reports/%A-%a.out # STDOUT
+
+#SBATCH --array=0-15
+
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
+
+
 #SBATCH --mem=64G
 #comment out SBATCH --gres=gpu:1
+
 
 
 
@@ -43,14 +49,14 @@ printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus 
 echo "Files copied across:"
 tree
 
-echo $FILE_TO_RUN
-mamba list
-python --version
-python ./$FILE_TO_RUN
+
+echo $SLURM_ARRAY_TASK_ID
+
+python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID
 
 
-# copy the output directory back across to $DATA
-mkdir $WORKING_DIR/arc/outputs/$SLURM_JOB_ID
+# note -p, as each job in the array will try and create the output folder
+mkdir -p $WORKING_DIR/arc/outputs/$SLURM_JOB_ID
 echo "Outputs created: "
 tree ./output
 rsync -av ./output/* $WORKING_DIR/arc/outputs/$SLURM_JOB_ID

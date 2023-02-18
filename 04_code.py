@@ -208,19 +208,24 @@ loss_fns = [rcl_kld, rcl_kld_50mmd_rbf, kld_mmd_rbf, kld_50mmd_rbf, kld_mmd_rbf_
 args["loss_functions"] = [x.__name__ for x in loss_fns]
 
 
-for loss_fn in loss_fns:
-    print(loss_fn.__name__, flush=True)
-    final_state, metrics_history = run_training(
-        loss_fn, compute_epoch_metrics, args["num_epochs"], train_draws, test_draws, state
-    )
+import sys
 
-    with open(f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__)}', "wb") as file:
-        file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
+index = int(sys.argv[1])
+loss_fn = loss_fns[index]
 
-    with open(
-        f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+"_metrics_hist")}', "wb"
-    ) as file:
-        dill.dump(metrics_history, file)
+
+print(loss_fn.__name__, flush=True)
+final_state, metrics_history = run_training(
+    loss_fn, compute_epoch_metrics, args["num_epochs"], train_draws, test_draws, state
+)
+
+with open(f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__)}', "wb") as file:
+    file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
+
+with open(
+    f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+"_metrics_hist")}', "wb"
+) as file:
+    dill.dump(metrics_history, file)
 
 
 from reusable.util import save_args
