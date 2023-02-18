@@ -27,7 +27,7 @@ def mmd_mem_efficient(xs, ys, kernel_f):
         0, n, lambda i, acc: acc + jax.lax.fori_loop(0, m, lambda j, acc2: acc2 + kernel_f(xs[i], ys[j]), 0.0), 0.0
     )
 
-    return  Kx_term /(n * (n-1))  + Ky_term/(m* (m-1)) - 2 * Kxy_term / (m*n)
+    return  Kx_term + Ky_term- 2 * Kxy_term
 
 
 @partial(jax.jit, static_argnames=["kernel_f"])
