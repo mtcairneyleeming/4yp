@@ -30,3 +30,11 @@ def gen_latent_batches(latent_dim, num_batches, batch_size, rng_key):
     # batch these [note above ensures there are the right no. of elements], so the reshape works perfectly
     draws = jnp.reshape(draws, (num_batches, batch_size, -1))  # note the last shape size will be args["n"]
     return draws
+
+
+def pair_batched_data(xss, yss):
+    """Given 2 sets of datapoints in batches (same num. of batches and same size of batches), 
+    concatenate the datapoints, preserving batch structure"""
+    # 0 = batches, 1 = datapoints, 
+    return jnp.concatenate((xss, yss), axis=2)
+

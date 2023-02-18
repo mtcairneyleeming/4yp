@@ -85,6 +85,32 @@ class VAE(nn.Module):
         return x, generated_x, z_mu,z_sd
 
 
+class Single_Decoder(nn.Module):
+    """
+    Decoder set up for use on its own.
+    The input parameter is made up of vectors x,z, where x is the datapoint to be reconstructed (which is not used at all by the model), and z an IID 
+    standard normal multivariate Gaussian in the latent space.
+
+    x is provided to make training easier (as we can just return x and z), and for use, just apply some dummy vector.
+    the training 
+    """
+    
+    hidden_dim1: int
+    hidden_dim2: int
+    out_dim: int
+
+
+    @nn.compact
+    def __call__(self, input, **_):
+        x,z = jnp.split(input, [self.out_dim], axis=-1)
+        z = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="DEC Hidden1")(z)
+        z = nn.relu(z)
+        z = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="DEC Hidden2")(z)
+        z = nn.relu(z)
+        z = nn.Dense(self.out_dim, kernel_init=nn.initializers.normal(), name="DEC Recons")(z)
+        return x,z
+
+
 # SVI model using the Decoder above
 def vae_model(batch, hidden_dim1, hidden_dim2, latent_dim, vae_var):
     # not rewritten for conditional, as that would require sampling u/l or something
@@ -175,3 +201,11 @@ def cvae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, y=N
     else: # during inference
         numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
 
+
+def decoder_sample(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params):
+    z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
+    
+    x_z = numpyro.deterministic("x_z", jnp.concatenate([jnp.ones(out_dim), z], axis=0))
+    decoder_nn = Single_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
+    f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, x_z)[1])
+    return f
