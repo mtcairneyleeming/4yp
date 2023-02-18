@@ -58,7 +58,7 @@ rng_key, _ = random.split(random.PRNGKey(4))
 
 
 from reusable.gp import OneDGP
-from reusable.train_nn import gen_gp_batches
+from reusable.data import gen_gp_batches
 
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 

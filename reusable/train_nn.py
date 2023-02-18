@@ -1,37 +1,11 @@
 
 from flax.training import train_state  # Useful dataclass to keep train state
-from flax import struct
 import jax
 import jax.numpy as jnp
 from functools import partial
 
-from numpyro.infer import Predictive
 import time
 from typing import Callable, Any, Dict
-
-
-def gen_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y"):
-    pred = Predictive(gp_model, num_samples=num_batches * batch_size)
-    draws = pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=1e-5)[draw_access]
-
-    # batch these [note above ensures there are the right no. of elements], so the reshape works perfectly
-    draws = jnp.reshape(draws, (num_batches, batch_size, -1))  # note the last shape size will be args["n"]
-    return draws
-
-def gen_labelled_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y", label_access="c"):
-    pred = Predictive(gp_model, num_samples=num_batches * batch_size)
-    full_draws = pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=1e-5)
-    
-    function_vals = full_draws[draw_access]
-    labels = full_draws[label_access]
-    labels = labels[:, None] # expands array size
-
-    
-    draws = jnp.concatenate((function_vals,labels), axis=-1)
-
-    # batch these [note above ensures there are the right no. of elements], so the reshape works perfectly
-    draws = jnp.reshape(draws, (num_batches, batch_size, -1))  # note the last shape size will be args["n"] + 1, for the labels
-    return draws
 
 
 class SimpleTrainState(train_state.TrainState):
