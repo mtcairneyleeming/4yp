@@ -6,8 +6,8 @@ import jax.numpy as jnp
 import jax
 
 
-@partial(jax.jit, static_argnames=["kernel_f"])
-def mmd_mem_efficient(xs, ys, kernel_f):
+@partial(jax.jit, static_argnames=["kernel_f", "normalise"])
+def mmd_mem_efficient(xs, ys, kernel_f, normalise=False):
     """Memory-efficient version, though very slow differentiation"""
 
     n, _ = xs.shape  # so n is the number of vectors, and d the dimension of each vector
@@ -26,12 +26,13 @@ def mmd_mem_efficient(xs, ys, kernel_f):
     Kxy_term = jax.lax.fori_loop(
         0, n, lambda i, acc: acc + jax.lax.fori_loop(0, m, lambda j, acc2: acc2 + kernel_f(xs[i], ys[j]), 0.0), 0.0
     )
-
+    if normalise:
+        return  Kx_term/(n*(n-1)) + Ky_term/ (m*(m-1))- 2 * Kxy_term / (n*m)
     return  Kx_term + Ky_term- 2 * Kxy_term
 
 
-@partial(jax.jit, static_argnames=["kernel_f"])
-def mmd_matrix_impl(xs, ys, kernel_f):
+@partial(jax.jit, static_argnames=["kernel_f", "normalise"])
+def mmd_matrix_impl(xs, ys, kernel_f, normalise=False):
     """Matrix implementation: uses lots of memory, suitable for differentiation"""
 
     # Generate a kernel matrix by looping over each entry in x, y (both gm1, gm are functions!)
@@ -49,6 +50,10 @@ def mmd_matrix_impl(xs, ys, kernel_f):
     Kxy_term = jnp.sum(Kxy)
     del Kxy
 
+    if normalise:
+        n = xs.shape[0]
+        m = ys.shape[0]
+        return  Kx_term/(n * (n-1)) + Ky_term/ (m * (m-1))- 2 * Kxy_term / (n*m)
     return Kx_term + Ky_term - 2* Kxy_term
 
 

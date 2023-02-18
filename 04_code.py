@@ -105,22 +105,22 @@ from reusable.kernels import rbf_kernel, rq_kernel
 @jax.jit
 def RCL(y, reconstructed_y, mean, log_sd):
     """reconstruction loss, averaged over the datapoints (not summed)"""
-    return jnp.sum(optax.l2_loss(reconstructed_y, y))  # 1/y.shape[0] *
+    return jnp.mean(optax.l2_loss(reconstructed_y, y))  # 1/y.shape[0] *
 
 
 @jax.jit
 def KLD(y, reconstructed_y, mean, log_sd):
     """KL divergence between the distribution N(mean, log_sd) and a standard normal.
     e.g. see https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions"""
-    return -0.5 * jnp.sum(1 + log_sd - jnp.power(mean, 2) - jnp.exp(log_sd))
+    return -0.5 * jnp.mean(1 + log_sd - jnp.power(mean, 2) - jnp.exp(log_sd))
 
 
 @jax.jit
 def MMD_rbf(y, reconstructed_y, mean, log_sd):
-    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, args["mmd_rbf_ls"]))
+    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, args["mmd_rbf_ls"]), normalise=True)
 
 def MMD_rqk(y, reconstructed_y, mean, log_sd):
-    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rq_kernel(x, z, args["mmd_rq_ls"], args["mmd_rq_scale"]))
+    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rq_kernel(x, z, args["mmd_rq_ls"], args["mmd_rq_scale"]), normalise=True)
 
 
 
@@ -130,13 +130,13 @@ def rcl_kld(*args):
 
 
 @jax.jit
-def rcl_kld_50mmd_rbf(*args):
-    return RCL(*args) + KLD(*args) + 50 * MMD_rbf(*args)
+def rcl_kld_10mmd_rbf(*args):
+    return RCL(*args) + KLD(*args) + 10 * MMD_rbf(*args)
 
 
 @jax.jit
-def kld_50mmd_rbf(*args):
-    return 50 * MMD_rbf(*args) + KLD(*args)
+def kld_10mmd_rbf(*args):
+    return 10 * MMD_rbf(*args) + KLD(*args)
 
 
 @jax.jit
@@ -144,8 +144,8 @@ def kld_mmd_rbf(*args):
     return MMD_rbf(*args) + KLD(*args)
 
 @jax.jit
-def kld_50mmd_rq(*args):
-    return 50 * MMD_rqk(*args) + KLD(*args)
+def kld_10mmd_rq(*args):
+    return 10 * MMD_rqk(*args) + KLD(*args)
 
 
 @jax.jit
@@ -154,7 +154,7 @@ def kld_mmd_rq(*args):
 
 @jax.jit
 def kld_mmd_rbf_ls_1_2_4_16_32(y, reconstructed_y, mean, log_sd):
-    return KLD(y, reconstructed_y, mean, log_sd)+ mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, 1.0) + rbf_kernel(x, z, 2.0) +rbf_kernel(x, z, 4.0) +rbf_kernel(x, z, 16.0)+rbf_kernel(x, z, 32.0))
+    return KLD(y, reconstructed_y, mean, log_sd)+ mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, 1.0) + rbf_kernel(x, z, 2.0) +rbf_kernel(x, z, 4.0) +rbf_kernel(x, z, 16.0)+rbf_kernel(x, z, 32.0), normalise=True)
 
 
 def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_samples, train_output, test_output):
@@ -204,7 +204,7 @@ gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel=args["gp_k
 print("Starting training", flush=True)
 
 
-loss_fns = [rcl_kld, rcl_kld_50mmd_rbf, kld_mmd_rbf, kld_50mmd_rbf, kld_mmd_rbf_ls_1_2_4_16_32, kld_mmd_rq, kld_50mmd_rq]
+loss_fns = [rcl_kld, rcl_kld_10mmd_rbf, kld_mmd_rbf, kld_10mmd_rbf, kld_mmd_rbf_ls_1_2_4_16_32, kld_mmd_rq, kld_10mmd_rq]
 args["loss_functions"] = [x.__name__ for x in loss_fns]
 
 
@@ -233,5 +233,3 @@ from reusable.util import save_args
 save_args("04", args)
 
 print("Saved args", flush=True)
-
-# %%
