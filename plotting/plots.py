@@ -217,7 +217,7 @@ def plot_lengthscales(lss, title, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_training(test, train, title, note="", ax=None, save_path=None):
+def plot_training(test, train, title, note="", ax=None, save_path=None, ylims=None):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -232,6 +232,9 @@ def plot_training(test, train, title, note="", ax=None, save_path=None):
     ax.set_ylabel(note)
     ax.set_title(title)
     ax.legend()
+
+    if ylims is not None:
+        ax.set_ylim(*ylims)
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
