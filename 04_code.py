@@ -130,19 +130,19 @@ def rcl_kld(*args):
 
 def rcl_kld_mmd_rbf_scaled(scale):
     @jax.jit
-    def f(*args):
-        return RCL(*args) + KLD(*args) + f * MMD_rbf(*args)
-    f.__name__ = f"rcl_kld_{scale}mmd_rbf"
+    def func(*args):
+        return RCL(*args) + KLD(*args) + scale * MMD_rbf(*args)
+    func.__name__ = f"rcl_kld_{scale}mmd_rbf"
 
-    return f
+    return func
 
 def rcl_kld_mmd_rq_scaled(scale):
     @jax.jit
-    def f(*args):
-        return RCL(*args) + KLD(*args) + f * MMD_rqk(*args)
-    f.__name__ = f"rcl_kld_{scale}mmd_rq"
+    def func(*args):
+        return RCL(*args) + KLD(*args) + scale * MMD_rqk(*args)
+    func.__name__ = f"rcl_kld_{scale}mmd_rq"
 
-    return f
+    return func
 
 
 @jax.jit
