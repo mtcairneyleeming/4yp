@@ -56,7 +56,7 @@ python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID
 
 
 # note -p, as each job in the array will try and create the output folder
-mkdir -p $WORKING_DIR/arc/outputs/$SLURM_JOB_ID
+mkdir -p $WORKING_DIR/arc/outputs/$SLURM_ARRAY_JOB_ID
 echo "Outputs created: "
 tree ./output
-rsync -av ./output/* $WORKING_DIR/arc/outputs/$SLURM_JOB_ID
+rsync -av ./output/* $WORKING_DIR/arc/outputs/$SLURM_ARRAY_JOB_ID
