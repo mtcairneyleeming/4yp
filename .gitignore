@@ -1,6 +1,9 @@
 gen_plots
 learnt_models
 
+arc/outputs
+arc/reports
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
