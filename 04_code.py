@@ -128,29 +128,22 @@ def MMD_rqk(y, reconstructed_y, mean, log_sd):
 def rcl_kld(*args):
     return RCL(*args) + KLD(*args)
 
+def rcl_kld_mmd_rbf_scaled(scale):
+    @jax.jit
+    def f(*args):
+        return RCL(*args) + KLD(*args) + f * MMD_rbf(*args)
+    f.__name__ = f"rcl_kld_{scale}mmd_rbf"
 
-@jax.jit
-def rcl_kld_10mmd_rbf(*args):
-    return RCL(*args) + KLD(*args) + 10 * MMD_rbf(*args)
+    return f
 
+def rcl_kld_mmd_rq_scaled(scale):
+    @jax.jit
+    def f(*args):
+        return RCL(*args) + KLD(*args) + f * MMD_rqk(*args)
+    f.__name__ = f"rcl_kld_{scale}mmd_rq"
 
-@jax.jit
-def kld_10mmd_rbf(*args):
-    return 10 * MMD_rbf(*args) + KLD(*args)
+    return f
 
-
-@jax.jit
-def kld_mmd_rbf(*args):
-    return MMD_rbf(*args) + KLD(*args)
-
-@jax.jit
-def kld_10mmd_rq(*args):
-    return 10 * MMD_rqk(*args) + KLD(*args)
-
-
-@jax.jit
-def kld_mmd_rq(*args):
-    return MMD_rqk(*args) + KLD(*args)
 
 @jax.jit
 def kld_mmd_rbf_ls_1_2_4_16_32(y, reconstructed_y, mean, log_sd):
@@ -204,7 +197,7 @@ gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel=args["gp_k
 print("Starting training", flush=True)
 
 
-loss_fns = [rcl_kld, rcl_kld_10mmd_rbf, kld_mmd_rbf, kld_10mmd_rbf, kld_mmd_rbf_ls_1_2_4_16_32, kld_mmd_rq, kld_10mmd_rq]
+loss_fns = ([rcl_kld_mmd_rbf_scaled(l) for l in [1, 5, 10, 25, 50, 100]] + [rcl_kld_mmd_rq_scaled(l) for l in  [1, 5, 10, 25, 50, 100]])
 args["loss_functions"] = [x.__name__ for x in loss_fns]
 
 
