@@ -35,9 +35,9 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 150,
+        "num_epochs": 200,
         "learning_rate": 1.0e-4,
-        "batch_size": 200,
+        "batch_size": 400,
         "train_num_batches": 500,
         "test_num_batches": 1,
         # MCMC parameters
@@ -145,9 +145,21 @@ def kld_mmd_rq_scaled(scale):
     return func
 
 
-@jax.jit
-def kld_mmd_rbf_ls_1_2_4_16_32(y, reconstructed_y, mean, log_sd):
-    return KLD(y, reconstructed_y, mean, log_sd)+ mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, 1.0) + rbf_kernel(x, z, 2.0) +rbf_kernel(x, z, 4.0) +rbf_kernel(x, z, 16.0)+rbf_kernel(x, z, 32.0), normalise=True)
+def kld_mmd_rbf_sum(lss):
+    @jax.jit
+    def func(y, reconstructed_y, mean, log_sd):
+        return KLD(y, reconstructed_y, mean, log_sd)+ mmd_matrix_impl(y, reconstructed_y, lambda x, z: sum([rbf_kernel(x, z, ls)  for ls in lss]), normalise=True)
+    func.__name__ = f"kld_mmd_rbf_sum"  + "_".join([str(l) for l in lss])
+
+    return func
+
+def kld_mmd_rq_sum(lss, scales):
+    @jax.jit
+    def func(y, reconstructed_y, mean, log_sd):
+        return KLD(y, reconstructed_y, mean, log_sd)+ mmd_matrix_impl(y, reconstructed_y, lambda x, z: sum([rq_kernel(x, z,ls, s)  for ls, s in zip(lss,scales)]), normalise=True)
+    func.__name__ = f"kld_mmd_rq_sum"  + "_".join([str(l) for l in lss]) + "_scales" + "_".join([str(s) for s in scales])
+
+    return func
 
 
 def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_samples, train_output, test_output):
@@ -197,9 +209,15 @@ gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel=args["gp_k
 print("Starting training", flush=True)
 
 
-loss_fns = ([kld_mmd_rbf_scaled(l) for l in [1, 5, 10, 25, 50, 100]] + [kld_mmd_rq_scaled(l) for l in  [1, 5, 10, 25, 50, 100]])
+loss_fns = ([rcl_kld]
+    + [kld_mmd_rbf_scaled(l) for l in [1, 10, 50]]
+    + [kld_mmd_rq_scaled(l) for l in  [1, 5, 10, 25, 50, 100]]
+    + [kld_mmd_rbf_sum([0.1, 1, 5, 10]), kld_mmd_rbf_sum([1, 5, 10])]
+    + [kld_mmd_rq_sum([1, 1, 5, 5], [0.1, 0.5, 0.1, 0.5]), kld_mmd_rq_sum([1, 1,1], [0.5, 1, 5])]
+    + [kld_mmd_rq_sum([1], [x]) for x in [0.5, 1, 5]]
+)
 args["loss_functions"] = [x.__name__ for x in loss_fns]
-
+print(len(loss_fns))
 
 import sys
 
