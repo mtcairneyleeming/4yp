@@ -181,7 +181,7 @@ print("Starting training", flush=True)
 
 args["description"] = "KLD+ s * MMD_rbf + t * RCL"
 args["s_range"] = [1, 10, 25, 50]
-args["t_range"] = [0.01, 0.1, 0.5, 1]
+args["t_range"] = [0.01, 0.1, 0.5, 1, 2]
 
 sr = len(args["s_range"])
 tr = len(args["t_range"])
