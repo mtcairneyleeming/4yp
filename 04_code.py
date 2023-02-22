@@ -73,7 +73,6 @@ test_draws = gen_gp_batches(
 
 print("Generated data", flush=True)
 
-# %%
 from reusable.vae import VAE
 from reusable.train_nn import SimpleTrainState
 import optax
@@ -98,80 +97,13 @@ import jax
 from reusable.vae import vae_sample
 from flax.core.frozen_dict import freeze
 
-from reusable.mmd import mmd_matrix_impl
-from reusable.kernels import rbf_kernel, rq_kernel
+from reusable.loss import RCL, KLD, MMD_rbf, MMD_rqk
+
+mmd_rbf = MMD_rbf(args["mmd_rbf_ls"])
+mmd_rqk = MMD_rqk(args["mmd_rq_ls"], args["mmd_rq_scale"])
 
 
-@jax.jit
-def RCL(y, reconstructed_y, mean, log_sd):
-    """reconstruction loss, averaged over the datapoints (not summed)"""
-    return jnp.mean(optax.l2_loss(reconstructed_y, y))  # 1/y.shape[0] *
-
-
-@jax.jit
-def KLD(y, reconstructed_y, mean, log_sd):
-    """KL divergence between the distribution N(mean, log_sd) and a standard normal.
-    e.g. see https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions"""
-    return -0.5 * jnp.mean(1 + log_sd - jnp.power(mean, 2) - jnp.exp(log_sd))
-
-
-@jax.jit
-def MMD_rbf(y, reconstructed_y, mean, log_sd):
-    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, args["mmd_rbf_ls"]), normalise=True)
-
-def MMD_rqk(y, reconstructed_y, mean, log_sd):
-    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rq_kernel(x, z, args["mmd_rq_ls"], args["mmd_rq_scale"]), normalise=True)
-
-
-
-@jax.jit
-def rcl_kld(*args):
-    return RCL(*args) + KLD(*args)
-
-def rcl_kld_mmd_rbf_scaled(scale):
-    @jax.jit
-    def func(*args):
-        return 0.01* RCL(*args) + KLD(*args) + scale * MMD_rbf(*args)
-    func.__name__ = f"0.01rcl_kld_{scale}mmd_rbf"
-
-    return func
-
-
-def kld_mmd_rbf_scaled(scale):
-    @jax.jit
-    def func(*args):
-        return KLD(*args) + scale * MMD_rbf(*args)
-    func.__name__ = f"kld_{scale}mmd_rbf"
-
-    return func
-
-def kld_mmd_rq_scaled(scale):
-    @jax.jit
-    def func(*args):
-        return KLD(*args) + scale * MMD_rqk(*args)
-    func.__name__ = f"kld_{scale}mmd_rq"
-
-    return func
-
-
-def kld_mmd_rbf_sum(lss):
-    @jax.jit
-    def func(y, reconstructed_y, mean, log_sd):
-        return KLD(y, reconstructed_y, mean, log_sd)+ mmd_matrix_impl(y, reconstructed_y, lambda x, z: sum([rbf_kernel(x, z, ls)  for ls in lss]), normalise=True)
-    func.__name__ = f"kld_mmd_rbf_sum"  + "_".join([str(l) for l in lss])
-
-    return func
-
-def kld_mmd_rq_sum(lss, scales):
-    @jax.jit
-    def func(y, reconstructed_y, mean, log_sd):
-        return KLD(y, reconstructed_y, mean, log_sd)+ mmd_matrix_impl(y, reconstructed_y, lambda x, z: sum([rq_kernel(x, z,ls, s)  for ls, s in zip(lss,scales)]), normalise=True)
-    func.__name__ = f"kld_mmd_rq_sum"  + "_".join([str(l) for l in lss]) + "_scales" + "_".join([str(s) for s in scales])
-
-    return func
-
-
-def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_samples, train_output, test_output):
+def compute_epoch_metrics(final_state: SimpleTrainState,  train_output, test_output):
     print("epoch done", flush=True)
     current_metric_key = jax.random.fold_in(key=final_state.key, data=2 * final_state.step + 1)
 
@@ -185,12 +117,12 @@ def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_sam
     )["f"]
 
     metrics = {
-        "train_mmd_rbf": MMD_rbf(*train_output),
-        "test_mmd_rbf": MMD_rbf(*test_output),
-        "train_mmd_rqk": MMD_rqk(*train_output),
-        "test_mmd_rqk": MMD_rqk(*test_output),
-        "train_mmd_rbf_new_draws": MMD_rbf(vae_draws, train_samples[-1], 0, 0), # ignore 0s, just there to satisfy extra arguments
-        "test_mmd_rbf_new_draws": MMD_rbf(vae_draws, test_samples[-1], 0,0),
+        "train_mmd_rbf": mmd_rbf(*train_output),
+        "test_mmd_rbf": mmd_rbf(*test_output),
+        "train_mmd_rqk": mmd_rqk(*train_output),
+        "test_mmd_rqk": mmd_rqk(*test_output),
+        "train_mmd_rbf_new_draws": mmd_rbf(vae_draws, train_draws[-1], 0, 0), # ignore 0s, just there to satisfy extra arguments
+        "test_mmd_rbf_new_draws": mmd_rbf(vae_draws, test_draws[-1], 0,0),
         "train_kld": KLD(*train_output),
         "test_kld": KLD(*test_output),
         "train_rcl": RCL(*train_output),
@@ -217,7 +149,11 @@ gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel=args["gp_k
 
 print("Starting training", flush=True)
 
-loss_fns = [rcl_kld_mmd_rbf_scaled(s) for s in [1, 10, 25, 50]]
+from reusable.loss import combo3_loss, RCL, KLD, MMD_rbf
+
+
+loss_fns = [combo3_loss(RCL, KLD, MMD_rbf(args["mmd_rbf_ls"]), 0.01, 1, s) for s in [1,10,25,50]]
+#[rcl_kld_mmd_rbf_scaled(s) for s in [1, 10, 25, 50]]
 # loss_fns = ([rcl_kld]
 #     + [kld_mmd_rbf_scaled(l) for l in [1, 10, 50]]
 #     + [kld_mmd_rq_scaled(l) for l in  [1, 5, 10, 25, 50, 100]]

@@ -92,48 +92,15 @@ import jax
 from reusable.vae import vae_sample
 from flax.core.frozen_dict import freeze
 
-from reusable.mmd import mmd_matrix_impl
-from reusable.kernels import rbf_kernel, rq_kernel
+
+from reusable.loss import RCL, KLD, MMD_rbf, MMD_rqk
 
 
-@jax.jit
-def RCL(y, reconstructed_y, mean, log_sd):
-    """reconstruction loss, averaged over the datapoints (not summed)"""
-    return jnp.mean(optax.l2_loss(reconstructed_y, y))  # 1/y.shape[0] *
+mmd_rbf = MMD_rbf(args["mmd_rbf_ls"])
+mmd_rqk = MMD_rqk(args["mmd_rq_ls"], args["mmd_rq_scale"])
 
 
-@jax.jit
-def KLD(y, reconstructed_y, mean, log_sd):
-    """KL divergence between the distribution N(mean, log_sd) and a standard normal.
-    e.g. see https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions"""
-    return -0.5 * jnp.mean(1 + log_sd - jnp.power(mean, 2) - jnp.exp(log_sd))
-
-
-@jax.jit
-def MMD_rbf(y, reconstructed_y, mean, log_sd):
-    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, args["mmd_rbf_ls"]), normalise=True)
-
-def MMD_rqk(y, reconstructed_y, mean, log_sd):
-    return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rq_kernel(x, z, args["mmd_rq_ls"], args["mmd_rq_scale"]), normalise=True)
-
-def gridsearch_rcl_mmd_rbf_w_kld(rcl_factor, mmd_factor):
-    @jax.jit
-    def func(*args):
-        return KLD(*args) + mmd_factor * MMD_rbf(*args) + rcl_factor * RCL(*args)
-    func.__name__ = f"kld_{mmd_factor}mmd_rbf_{rcl_factor}rcl"
-
-    return func
-
-def gridsearch_rcl_mmd_rq_w_kld(rcl_factor, mmd_factor):
-    @jax.jit
-    def func(*args):
-        return KLD(*args) + mmd_factor * MMD_rqk(*args) + rcl_factor * RCL(*args)
-    func.__name__ = f"kld_{mmd_factor}mmd_rq_{rcl_factor}rcl"
-
-    return func
-
-
-def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_samples, train_output, test_output):
+def compute_epoch_metrics(final_state: SimpleTrainState,  train_output, test_output):
     print("epoch done", flush=True)
     current_metric_key = jax.random.fold_in(key=final_state.key, data=2 * final_state.step + 1)
 
@@ -147,17 +114,18 @@ def compute_epoch_metrics(final_state: SimpleTrainState, test_samples, train_sam
     )["f"]
 
     metrics = {
-        "train_mmd_rbf": MMD_rbf(*train_output),
-        "test_mmd_rbf": MMD_rbf(*test_output),
-        "train_mmd_rqk": MMD_rqk(*train_output),
-        "test_mmd_rqk": MMD_rqk(*test_output),
-        "train_mmd_rbf_new_draws": MMD_rbf(vae_draws, train_samples[-1], 0, 0), # ignore 0s, just there to satisfy extra arguments
-        "test_mmd_rbf_new_draws": MMD_rbf(vae_draws, test_samples[-1], 0,0),
+        "train_mmd_rbf": mmd_rbf(*train_output),
+        "test_mmd_rbf": mmd_rbf(*test_output),
+        "train_mmd_rqk": mmd_rqk(*train_output),
+        "test_mmd_rqk": mmd_rqk(*test_output),
+        "train_mmd_rbf_new_draws": mmd_rbf(vae_draws, train_draws[-1], 0, 0), # ignore 0s, just there to satisfy extra arguments
+        "test_mmd_rbf_new_draws": mmd_rbf(vae_draws, test_draws[-1], 0,0),
         "train_kld": KLD(*train_output),
         "test_kld": KLD(*test_output),
         "train_rcl": RCL(*train_output),
         "test_rcl": RCL(*test_output),
     }
+
 
     return metrics
 
@@ -196,7 +164,10 @@ s = index // tr
 t = index % tr
 
 print(s, t)
-loss_fn = gridsearch_rcl_mmd_rbf_w_kld(args["t_range"][t], args["s_range"][s])
+
+from reusable.loss import RCL, MMD_rbf, KLD, combo3_loss
+
+loss_fn = combo3_loss(RCL, MMD_rbf(args["mmd_rbf_ls"]), KLD, args["t_range"][t], args["s_range"][s])
 
 
 print(loss_fn.__name__, flush=True)

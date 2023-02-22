@@ -1,8 +1,5 @@
-# exported from the 04 notebook on 15/02/2023 at 15:01
-
-# # PriorVAE: testing MMD (and in general different loss functions)
-#
-# For a 1D GP
+"""
+Decoder only network"""
 
 print("Starting", flush=True)
 from jax import random
@@ -103,55 +100,6 @@ from flax.core.frozen_dict import freeze
 from reusable.mmd import mmd_matrix_impl
 from reusable.kernels import rbf_kernel, rq_kernel
 
-# Loss functions
-
-
-def MMD_rbf_customls(ls):
-    @jax.jit
-    def MMD_rbf(y, reconstructed_y):
-        return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rbf_kernel(x, z, ls))
-
-    MMD_rbf.__name__ = "MMD_rbf_" + str(ls)
-
-    return MMD_rbf
-
-
-def MMD_rql_custom(ls, scale):
-    @jax.jit
-    def MMD_rqk(y, reconstructed_y):
-        return mmd_matrix_impl(y, reconstructed_y, lambda x, z: rq_kernel(x, z, ls, scale))
-
-    MMD_rqk.__name__ = f"MMD_rqk_{ls}_{scale}"
-
-    return MMD_rqk
-
-
-@jax.jit
-def MMD_rbf_ls_1_2_4_16_32(y, reconstructed_y):
-    return mmd_matrix_impl(
-        y,
-        reconstructed_y,
-        lambda x, z: rbf_kernel(x, z, 1.0)
-        + rbf_kernel(x, z, 2.0)
-        + rbf_kernel(x, z, 4.0)
-        + rbf_kernel(x, z, 16.0)
-        + rbf_kernel(x, z, 32.0),
-    )
-
-@jax.jit
-def MMD_rbf_ls_01_025_05_1_2_4_16_32(y, reconstructed_y):
-    return mmd_matrix_impl(
-        y,
-        reconstructed_y,
-        lambda x, z: rbf_kernel(x, z, 0.1)
-        + rbf_kernel(x, z, 0.25)
-        + rbf_kernel(x, z, 0.5)
-        + rbf_kernel(x, z, 1.0)
-        + rbf_kernel(x, z, 2.0)
-        + rbf_kernel(x, z, 4.0)
-        + rbf_kernel(x, z, 16.0)
-        + rbf_kernel(x, z, 32.0),
-    )
 
 
 from reusable.train_nn import run_training
@@ -161,22 +109,24 @@ import jax.random as random
 from reusable.util import decoder_filename, get_savepath
 
 
+from reusable.loss import MMD_rbf, MMD_rqk, MMD_rbf_sum, MMD_rqk_sum
+
 print("Starting training", flush=True)
 
 # Run 1
 # loss_fns = (
-#     [MMD_rbf_customls(l) for l in [0.5, 1, 2, 8, 16]]
-#     + [MMD_rbf_ls_1_2_4_16_32]
-#     + [MMD_rql_custom(1, l ) for l in [0.25, 0.5, 1, 8, 16]]
-#     + [MMD_rql_custom(4, l) for l in [0.25, 0.5, 1, 8, 16]]
+#     [MMD_rbf(l) for l in [0.5, 1, 2, 8, 16]]
+#     + [MMD_rbf_sum([1,2,4,16,32])]
+#     + [MMD_rqk(1, l ) for l in [0.25, 0.5, 1, 8, 16]]
+#     + [MMD_rqk(4, l) for l in [0.25, 0.5, 1, 8, 16]]
 # )
 
 #Run 2
 loss_fns = (
-    [MMD_rbf_customls(l) for l in [4, 6, 8, 10, 12]]
-    + [MMD_rbf_ls_01_025_05_1_2_4_16_32]
-    + [MMD_rql_custom(l, 0.25 ) for l in [0.25, 0.5, 1, 4, 8, 16]]
-    + [MMD_rql_custom(l, 0.1) for l in [0.25, 0.5, 1, 4, 8, 16]]
+    [MMD_rbf(l) for l in [4, 6, 8, 10, 12]]
+    + [MMD_rbf_sum([0.1, 0.25, 0.5, 1,2,4,16,32])]
+    + [MMD_rqk(l, 0.25 ) for l in [0.25, 0.5, 1, 4, 8, 16]]
+    + [MMD_rqk(l, 0.1) for l in [0.25, 0.5, 1, 4, 8, 16]]
 )
 args["loss_functions"] = [x.__name__ for x in loss_fns]
 
