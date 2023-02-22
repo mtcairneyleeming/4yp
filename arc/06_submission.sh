@@ -1,12 +1,12 @@
 #! /bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
-#SBATCH --job-name=4yp_04
+#SBATCH --job-name=4yp_06
 #SBATCH --time=12:00:00
 #SBATCH --partition=short
 #SBATCH --output ./arc/reports/%A-%a.out # STDOUT
 
-#SBATCH --array=1-19
+#SBATCH --array=0-19
 
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
