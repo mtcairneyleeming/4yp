@@ -35,9 +35,9 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 200,
+        "num_epochs": 400,
         "learning_rate": 1.0e-4,
-        "batch_size": 400,
+        "batch_size": 500,
         "train_num_batches": 500,
         "test_num_batches": 1,
         # MCMC parameters
@@ -128,6 +128,15 @@ def MMD_rqk(y, reconstructed_y, mean, log_sd):
 def rcl_kld(*args):
     return RCL(*args) + KLD(*args)
 
+def rcl_kld_mmd_rbf_scaled(scale):
+    @jax.jit
+    def func(*args):
+        return 0.01* RCL(*args) + KLD(*args) + scale * MMD_rbf(*args)
+    func.__name__ = f"0.01rcl_kld_{scale}mmd_rbf"
+
+    return func
+
+
 def kld_mmd_rbf_scaled(scale):
     @jax.jit
     def func(*args):
@@ -208,14 +217,14 @@ gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel=args["gp_k
 
 print("Starting training", flush=True)
 
-
-loss_fns = ([rcl_kld]
-    + [kld_mmd_rbf_scaled(l) for l in [1, 10, 50]]
-    + [kld_mmd_rq_scaled(l) for l in  [1, 5, 10, 25, 50, 100]]
-    + [kld_mmd_rbf_sum([0.1, 1, 5, 10]), kld_mmd_rbf_sum([1, 5, 10])]
-    + [kld_mmd_rq_sum([1, 1, 5, 5], [0.1, 0.5, 0.1, 0.5]), kld_mmd_rq_sum([1, 1,1], [0.5, 1, 5])]
-    + [kld_mmd_rq_sum([1], [x]) for x in [0.5, 1, 5]]
-)
+loss_fns = [rcl_kld_mmd_rbf_scaled(s) for s in [1, 10, 25, 50]]
+# loss_fns = ([rcl_kld]
+#     + [kld_mmd_rbf_scaled(l) for l in [1, 10, 50]]
+#     + [kld_mmd_rq_scaled(l) for l in  [1, 5, 10, 25, 50, 100]]
+#     + [kld_mmd_rbf_sum([0.1, 1, 5, 10]), kld_mmd_rbf_sum([1, 5, 10])]
+#     + [kld_mmd_rq_sum([1, 1, 5, 5], [0.1, 0.5, 0.1, 0.5]), kld_mmd_rq_sum([1, 1,1], [0.5, 1, 5])]
+#     + [kld_mmd_rq_sum([1], [x]) for x in [0.5, 1, 5]]
+# )
 args["loss_functions"] = [x.__name__ for x in loss_fns]
 print(len(loss_fns))
 
