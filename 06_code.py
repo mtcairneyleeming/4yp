@@ -196,7 +196,7 @@ s = index // tr
 t = index % tr
 
 print(s, t)
-loss_fn = gridsearch_rcl_mmd_rbf_w_kld(args["s_range"][s], args["t_range"][t])
+loss_fn = gridsearch_rcl_mmd_rbf_w_kld(args["t_range"][t], args["s_range"][s])
 
 
 print(loss_fn.__name__, flush=True)
