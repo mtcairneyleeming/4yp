@@ -31,7 +31,7 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 300,
+        "num_epochs": 200,
         "learning_rate": 1.0e-4,
         "batch_size": 500,
         "train_num_batches": 500,
@@ -64,7 +64,8 @@ train_draws = gen_gp_batches(
 test_draws = gen_gp_batches(
     args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
 )
-
+del rng_key_train
+del rng_key_test
 
 print("Generated data", flush=True)
 
@@ -72,7 +73,7 @@ from reusable.vae import VAE
 from reusable.train_nn import SimpleTrainState
 import optax
 
-rng_key, rng_key_init, rng_key_train = random.split(rng_key, 3)
+rng_key, rng_key_init, rng_key_train, rng_key_test = random.split(rng_key, 4)
 
 module = VAE(
     hidden_dim1=args["hidden_dim1"],
@@ -178,15 +179,32 @@ else:
         compute_epoch_metrics,
         args["num_epochs"],
         args["train_num_batches"],
-        lambda i, j: gen_one_batch(args["x"], OneDGP, args["gp_kernel"], args["batch_size"]),
-        lambda i: gen_one_batch(args["x"], OneDGP, args["gp_kernel"], args["test_num_batches"] * args["batch_size"]),
+        lambda i, j: gen_one_batch(
+            args["x"],
+            OneDGP,
+            args["gp_kernel"],
+            args["batch_size"],
+            random.fold_in(rng_key_train, i * args["train_num_batches"] + j),
+        ),
+        lambda i: gen_one_batch(
+            args["x"],
+            OneDGP,
+            args["gp_kernel"],
+            args["test_num_batches"] * args["batch_size"],
+            random.fold_in(rng_key_test, i),
+        ),
         state,
     )
 
-with open(f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+ "_inf" if infinite else "")}', "wb") as file:
+with open(
+    f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+ "_inf" if infinite else "")}', "wb"
+) as file:
     file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
 
-with open(f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+"_metrics_hist"+ "_inf" if infinite else "")}', "wb") as file:
+with open(
+    f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+"_metrics_hist"+ "_inf" if infinite else "")}',
+    "wb",
+) as file:
     dill.dump(metrics_history, file)
 
 
