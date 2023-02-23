@@ -49,12 +49,26 @@ def run_training(
     initial_state: SimpleTrainState,
 ):
     """
-        Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`. `train_draws` is batched, 
-        whilst `test_draws` is a single batch for use for incremental metric updates.
+        Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`. 
+        
+        `train_draws` is batched, whilst `test_draws` is a single batch for use for incremental metric updates.
 
-        For `compute_epoch_metrics`, note that train_output will always be the output of the final state at the end of a epoch, on the last batch.
+        `compute_epoch_metrics` is passed the current state, as well as the outputs of the final state at the end of a epoch, on the last training batch, and the test batch
     """
-    return run_training_datastream(loss_fn, compute_epoch_metrics, num_epochs, train_draws.shape[0], lambda i: train_draws[i], lambda i: test_draws[-1], initial_state)
+    return run_training_datastream(loss_fn, compute_epoch_metrics, num_epochs, train_draws.shape[0], lambda i: train_draws, lambda i: test_draws[-1], initial_state)
+
+def run_training_infinite(
+    loss_fn,
+    compute_epoch_metrics: Callable[[SimpleTrainState, Any, Any], Dict],
+        all_train_draws: jax.Array,
+    test_draws: jax.Array,
+    initial_state: SimpleTrainState,
+):
+    """
+        Same as run_training, except that fresh training data is used at each epoch
+    """
+    return run_training_datastream(loss_fn, compute_epoch_metrics, all_train_draws.shape[0], all_train_draws.shape[1], lambda i: all_train_draws[i], lambda i: test_draws[-1], initial_state)
+
 
 
 
@@ -68,10 +82,11 @@ def run_training_datastream(
     initial_state: SimpleTrainState,
 ):
     """
-        Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`. `train_draws` is batched, 
-        whilst `test_draws` is a single batch for use for incremental metric updates.
-
-        For `compute_epoch_metrics`, note that train_output will always be the output of the final state at the end of a epoch, on the last batch.
+        Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`. Perform `num_train_batches` batch steps in each epoch.
+        
+        get_epoch_train/test_data will be called with the index of the current batch
+        
+        `compute_epoch_metrics` is passed the current state, as well as the outputs of the final state at the end of a epoch, on the last training batch, and the test batch
     """
     state = initial_state
     start = time.time()

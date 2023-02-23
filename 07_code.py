@@ -34,8 +34,8 @@ args.update(
         # learning
         "num_epochs": 200,
         "learning_rate": 1.0e-4,
-        "batch_size": 500,
-        "train_num_batches": 500,
+        "batch_size": 1000,
+        "train_num_batches": 1000,
         "test_num_batches": 1,
         # MCMC parameters
         "num_warmup": 1000,
@@ -54,19 +54,22 @@ rng_key, _ = random.split(random.PRNGKey(4))
 
 
 from reusable.gp import OneDGP
-from reusable.data import gen_gp_batches
+from reusable.data import gen_all_gp_batches, gen_gp_batches
 
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 
-train_draws = gen_gp_batches(
-    args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
+all_train_draws = gen_all_gp_batches(
+    args["x"], OneDGP, args["gp_kernel"], args["num_epochs"], args["train_num_batches"], args["batch_size"], rng_key_train
 )
+
+repeated_train_draws = all_train_draws[0]
 
 test_draws = gen_gp_batches(
     args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
 )
-print("Train: ", train_draws.nbytes, train_draws.itemsize, " test: ", test_draws.nbytes)
-
+print("Train: ", all_train_draws.nbytes, all_train_draws.itemsize, " test: ", test_draws.nbytes)
+print(all_train_draws.shape)
+print(repeated_train_draws.shape)
 del rng_key_train
 del rng_key_test
 
@@ -121,7 +124,7 @@ def compute_epoch_metrics(final_state: SimpleTrainState, train_output, test_outp
         "train_mmd_rqk": mmd_rqk(*train_output),
         "test_mmd_rqk": mmd_rqk(*test_output),
         "train_mmd_rbf_new_draws": mmd_rbf(
-            vae_draws, train_draws[-1], 0, 0
+            vae_draws, repeated_train_draws[-1], 0, 0
         ),  # ignore 0s, just there to satisfy extra arguments
         "test_mmd_rbf_new_draws": mmd_rbf(vae_draws, test_draws[-1], 0, 0),
         "train_kld": KLD(*train_output),
@@ -133,7 +136,7 @@ def compute_epoch_metrics(final_state: SimpleTrainState, train_output, test_outp
     return metrics
 
 
-from reusable.train_nn import run_training, run_training_datastream
+from reusable.train_nn import run_training, run_training_infinite
 
 
 from reusable.vae import vae_sample
@@ -170,28 +173,17 @@ infinite = index % 2 == 0
 
 print(loss_fn.__name__, flush=True)
 
-from reusable.data import get_one_batch_generator, get_batches_generator
 
 if not infinite:
     final_state, metrics_history = run_training(
-        loss_fn, compute_epoch_metrics, args["num_epochs"], train_draws, test_draws, state
+        loss_fn, compute_epoch_metrics, args["num_epochs"], repeated_train_draws, test_draws, state
     )
 else:
-    train_batch_gen = get_batches_generator(
-        args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"]
-    )
-
-    test_batch_gen = get_one_batch_generator(
-        args["x"], OneDGP, args["gp_kernel"], args["test_num_batches"] * args["batch_size"]
-    )
-
-    final_state, metrics_history = run_training_datastream(
+    final_state, metrics_history = run_training_infinite(
         loss_fn,
         compute_epoch_metrics,
-        args["num_epochs"],
-        args["train_num_batches"],
-        lambda i: train_batch_gen(random.fold_in(rng_key_train, i)),
-        lambda i: test_batch_gen(random.fold_in(rng_key_test, i)),
+        all_train_draws,
+        test_draws,
         state,
     )
 
@@ -206,7 +198,7 @@ with open(
 ) as file:
     dill.dump(metrics_history, file)
 
-jax.profiler.save_device_memory_profile(f'{get_savepath}/{decoder_filename("07", args, suffix=f"{index}.prof")}')
+jax.profiler.save_device_memory_profile(f'{get_savepath()}/{decoder_filename("07", args, suffix=f"{index}.prof")}')
 
 from reusable.util import save_args
 
