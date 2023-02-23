@@ -9,6 +9,7 @@ from flax import serialization
 import numpyro
 from numpyro.infer import Predictive
 
+import jax.profiler
 
 numpyro.set_host_device_count(3)
 
@@ -47,7 +48,7 @@ args.update(
         "mmd_rq_scale": 1,  # TODO: JUSTIFY?
     }
 )
-
+print(args["x"].nbytes)
 
 rng_key, _ = random.split(random.PRNGKey(4))
 
@@ -64,6 +65,8 @@ train_draws = gen_gp_batches(
 test_draws = gen_gp_batches(
     args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
 )
+print("Train: ", train_draws.nbytes, train_draws.itemsize, " test: ", test_draws.nbytes)
+
 del rng_key_train
 del rng_key_test
 
@@ -167,46 +170,43 @@ infinite = index % 2 == 0
 
 print(loss_fn.__name__, flush=True)
 
-from reusable.data import gen_one_batch
+from reusable.data import get_one_batch_generator, get_batches_generator
 
 if not infinite:
     final_state, metrics_history = run_training(
         loss_fn, compute_epoch_metrics, args["num_epochs"], train_draws, test_draws, state
     )
 else:
+    train_batch_gen = get_batches_generator(
+        args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"]
+    )
+
+    test_batch_gen = get_one_batch_generator(
+        args["x"], OneDGP, args["gp_kernel"], args["test_num_batches"] * args["batch_size"]
+    )
+
     final_state, metrics_history = run_training_datastream(
         loss_fn,
         compute_epoch_metrics,
         args["num_epochs"],
         args["train_num_batches"],
-        lambda i, j: gen_one_batch(
-            args["x"],
-            OneDGP,
-            args["gp_kernel"],
-            args["batch_size"],
-            random.fold_in(rng_key_train, i * args["train_num_batches"] + j),
-        ),
-        lambda i: gen_one_batch(
-            args["x"],
-            OneDGP,
-            args["gp_kernel"],
-            args["test_num_batches"] * args["batch_size"],
-            random.fold_in(rng_key_test, i),
-        ),
+        lambda i: train_batch_gen(random.fold_in(rng_key_train, i)),
+        lambda i: test_batch_gen(random.fold_in(rng_key_test, i)),
         state,
     )
 
 with open(
-    f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+ "_inf" if infinite else "")}', "wb"
+    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+ "_inf" if infinite else "")}', "wb"
 ) as file:
     file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
 
 with open(
-    f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+"_metrics_hist"+ "_inf" if infinite else "")}',
+    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+"_metrics_hist"+ "_inf" if infinite else "")}',
     "wb",
 ) as file:
     dill.dump(metrics_history, file)
 
+jax.profiler.save_device_memory_profile(f'{get_savepath}/{decoder_filename("07", args, suffix=f"{index}.prof")}')
 
 from reusable.util import save_args
 

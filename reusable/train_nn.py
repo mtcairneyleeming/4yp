@@ -54,7 +54,7 @@ def run_training(
 
         For `compute_epoch_metrics`, note that train_output will always be the output of the final state at the end of a epoch, on the last batch.
     """
-    return run_training_datastream(loss_fn, compute_epoch_metrics, num_epochs, train_draws.shape[0], lambda i,j: train_draws[i][j], lambda i: test_draws[-1], initial_state)
+    return run_training_datastream(loss_fn, compute_epoch_metrics, num_epochs, train_draws.shape[0], lambda i: train_draws[i], lambda i: test_draws[-1], initial_state)
 
 
 
@@ -63,7 +63,7 @@ def run_training_datastream(
     compute_epoch_metrics: Callable[[SimpleTrainState, Any, Any], Dict],
     num_epochs: int,
     num_train_batches: int,
-    get_epoch_train_data: Callable[[int, int], jax.Array],
+    get_epoch_train_data: Callable[[int], jax.Array],
     get_epoch_test_data: Callable[[int], jax.Array],
     initial_state: SimpleTrainState,
 ):
@@ -84,17 +84,17 @@ def run_training_datastream(
         # note this is a different indexing scheme to the Flax tutorial
 
         batch_losses = []
-        curr_training_data = None
+        curr_training_data = get_epoch_train_data(i)
         for j in range(num_train_batches):
             # Run optimization steps over training batches and compute batch metrics
-            curr_training_data = get_epoch_train_data(i,j)
+            
             state = training_step(
-                state, curr_training_data, loss_fn=loss_fn
+                state, curr_training_data[j], loss_fn=loss_fn
             )  # get updated train state (which contains the updated parameters)
-            batch_losses.append(compute_batch_loss(state=state, batch=curr_training_data, loss_fn=loss_fn, training=False))
+            batch_losses.append(compute_batch_loss(state=state, batch=curr_training_data[j], loss_fn=loss_fn, training=False))
 
         test_state = state
-        test_output = test_state.apply_fn({"params": test_state.params}, curr_training_data, training=False)
+        test_output = test_state.apply_fn({"params": test_state.params}, curr_training_data[-1], training=False)
         train_output = test_state.apply_fn({"params": test_state.params}, get_epoch_test_data(i), training=False)
 
         metrics = compute_epoch_metrics(test_state, train_output, test_output)
