@@ -15,7 +15,7 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y"):
 
 def gen_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y"):
 
-    draws = gen_one_batch(x, gp_model, num_batches * batch_size, rng_key, draw_access)
+    draws = gen_one_batch(x, gp_model, gp_kernel, num_batches * batch_size, rng_key, draw_access)
 
     # batch these [note above ensures there are the right no. of elements], so the reshape works perfectly
     draws = jnp.reshape(draws, (num_batches, batch_size, -1))  # note the last shape size will be args["n"]
