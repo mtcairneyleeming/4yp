@@ -77,11 +77,10 @@ from reusable.gp import OneDGP
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 
 
-if not infinite:
 
-    repeated_train_draws = gen_gp_batches(
-        args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
-    )
+repeated_train_draws = gen_gp_batches(
+    args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
+)
 
 test_draws = gen_gp_batches(
     args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
@@ -179,7 +178,7 @@ else:
         args["num_epochs"],
         args["train_num_batches"],
         lambda i: train_batch_gen(random.fold_in(rng_key_train, i)),
-        lambda i: test_draws,
+        lambda i: test_draws[-1],
         state,
     )
 
