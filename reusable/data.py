@@ -12,6 +12,15 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y"):
 
     return draws
 
+def get_batches_generator(x, gp_model, gp_kernel, num_batches, batch_size, draw_access="y"):
+    pred = Predictive(gp_model, num_samples=num_batches * batch_size)
+
+    def func(rng_key):
+        draws =  pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=1e-5)[draw_access]
+        return jnp.reshape(draws, (num_batches, batch_size, -1))
+
+    return func
+
 def gen_all_gp_batches(x, gp_model, gp_kernel, num_epochs, num_batches, batch_size, rng_key, draw_access="y"):
 
     draws = gen_one_batch(x, gp_model, gp_kernel, num_epochs* num_batches * batch_size, rng_key, draw_access)

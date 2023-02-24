@@ -1,15 +1,13 @@
 # PriorVAE - comparing "infinite" to the previous setting of iterating over the same dataset
 
 print("Starting", flush=True)
-from jax import random
-
-import jax.numpy as jnp
 import dill
-from flax import serialization
-import numpyro
-from numpyro.infer import Predictive
-
+import jax.numpy as jnp
 import jax.profiler
+import numpyro
+from flax import serialization
+from jax import random
+from numpyro.infer import Predictive
 
 numpyro.set_host_device_count(3)
 
@@ -53,31 +51,51 @@ print(args["x"].nbytes)
 rng_key, _ = random.split(random.PRNGKey(4))
 
 
+from reusable.loss import KLD, RCL, MMD_rbf, combo3_loss
+
+loss_fns = [combo3_loss(RCL, KLD, MMD_rbf(args["mmd_rbf_ls"]), 0.01, 1, s) for s in [1, 10, 25, 50]]
+
+
+args["loss_functions"] = [x.__name__ for x in loss_fns]
+print(len(loss_fns))
+
+import sys
+
+index = int(sys.argv[1])
+
+
+loss_fn = loss_fns[index // 2]
+
+infinite = index % 2 == 0
+
+print(loss_fn.__name__, flush=True)
+
+from reusable.data import (gen_all_gp_batches, gen_gp_batches,
+                           get_batches_generator)
 from reusable.gp import OneDGP
-from reusable.data import gen_all_gp_batches, gen_gp_batches
 
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 
-all_train_draws = gen_all_gp_batches(
-    args["x"], OneDGP, args["gp_kernel"], args["num_epochs"], args["train_num_batches"], args["batch_size"], rng_key_train
-)
 
-repeated_train_draws = all_train_draws[0]
+if not infinite:
 
-test_draws = gen_gp_batches(
-    args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
-)
-print("Train: ", all_train_draws.nbytes, all_train_draws.itemsize, " test: ", test_draws.nbytes)
-print(all_train_draws.shape)
-print(repeated_train_draws.shape)
+    repeated_train_draws = gen_gp_batches(
+        args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
+    )
+
+    test_draws = gen_gp_batches(
+        args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
+    )
+
 del rng_key_train
 del rng_key_test
 
 print("Generated data", flush=True)
 
-from reusable.vae import VAE
-from reusable.train_nn import SimpleTrainState
 import optax
+
+from reusable.train_nn import SimpleTrainState
+from reusable.vae import VAE
 
 rng_key, rng_key_init, rng_key_train, rng_key_test = random.split(rng_key, 4)
 
@@ -93,13 +111,12 @@ tx = optax.adam(args["learning_rate"])
 state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
 
 
-import optax
 import jax
-
-from reusable.vae import vae_sample
+import optax
 from flax.core.frozen_dict import freeze
 
-from reusable.loss import RCL, KLD, MMD_rbf, MMD_rqk
+from reusable.loss import KLD, RCL, MMD_rbf, MMD_rqk
+from reusable.vae import vae_sample
 
 mmd_rbf = MMD_rbf(args["mmd_rbf_ls"])
 mmd_rqk = MMD_rqk(args["mmd_rq_ls"], args["mmd_rq_scale"])
@@ -136,42 +153,15 @@ def compute_epoch_metrics(final_state: SimpleTrainState, train_output, test_outp
     return metrics
 
 
-from reusable.train_nn import run_training, run_training_infinite
-
-
-from reusable.vae import vae_sample
 import jax.random as random
 from numpyro.infer import Predictive
+
 from reusable.gp import OneDGP
+from reusable.train_nn import run_training, run_training_datastream
 from reusable.util import decoder_filename, get_savepath
-
-
-_, rng_key_predict = random.split(random.PRNGKey(2))
-
-plot_gp_predictive = Predictive(OneDGP, num_samples=1000)
-gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5)["y"]
+from reusable.vae import vae_sample
 
 print("Starting training", flush=True)
-
-from reusable.loss import combo3_loss, RCL, KLD, MMD_rbf
-
-
-loss_fns = [combo3_loss(RCL, KLD, MMD_rbf(args["mmd_rbf_ls"]), 0.01, 1, s) for s in [1, 10, 25, 50]]
-
-
-args["loss_functions"] = [x.__name__ for x in loss_fns]
-print(len(loss_fns))
-
-import sys
-
-index = int(sys.argv[1])
-
-
-loss_fn = loss_fns[index // 2]
-
-infinite = index % 2 == 0
-
-print(loss_fn.__name__, flush=True)
 
 
 if not infinite:
@@ -179,11 +169,15 @@ if not infinite:
         loss_fn, compute_epoch_metrics, args["num_epochs"], repeated_train_draws, test_draws, state
     )
 else:
-    final_state, metrics_history = run_training_infinite(
+    train_batch_gen = get_batches_generator(
+        args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"]
+    )
+
+    final_state, metrics_history = run_training_datastream(
         loss_fn,
         compute_epoch_metrics,
-        all_train_draws,
-        test_draws,
+        lambda i: train_batch_gen(random.fold_in(rng_key_train, i)),
+        lambda i: test_draws,
         state,
     )
 
