@@ -32,7 +32,7 @@ args.update(
         # learning
         "num_epochs": 200,
         "learning_rate": 1.0e-4,
-        "batch_size": 1000,
+        "batch_size": 500,
         "train_num_batches": 1000,
         "test_num_batches": 1,
         # MCMC parameters
@@ -83,9 +83,9 @@ if not infinite:
         args["x"], OneDGP, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
     )
 
-    test_draws = gen_gp_batches(
-        args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
-    )
+test_draws = gen_gp_batches(
+    args["x"], OneDGP, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
+)
 
 del rng_key_train
 del rng_key_test
@@ -176,6 +176,8 @@ else:
     final_state, metrics_history = run_training_datastream(
         loss_fn,
         compute_epoch_metrics,
+        args["num_epochs"],
+        args["train_num_batches"],
         lambda i: train_batch_gen(random.fold_in(rng_key_train, i)),
         lambda i: test_draws,
         state,
