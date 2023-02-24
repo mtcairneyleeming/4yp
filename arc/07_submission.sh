@@ -1,6 +1,6 @@
 #! /bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=8
+#SBATCH --ntasks-per-node=4
 #SBATCH --job-name=4yp_07
 #SBATCH --time=12:00:00
 #SBATCH --partition=short
@@ -12,7 +12,7 @@
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
 
 
-#SBATCH --mem=64G
+#SBATCH --mem=200G
 #comment out SBATCH --gres=gpu:1
 
 
