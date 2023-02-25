@@ -30,10 +30,10 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 200,
+        "num_epochs": 2,
         "learning_rate": 1.0e-4,
-        "batch_size": 500,
-        "train_num_batches": 400,
+        "batch_size": 5,
+        "train_num_batches": 4,
         "test_num_batches": 1,
         # MCMC parameters
         "num_warmup": 1000,
@@ -182,13 +182,15 @@ else:
         state,
     )
 
+inf_path = "_inf" if infinite else ""
+
 with open(
-    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+ "_inf" if infinite else "")}', "wb"
+    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+ inf_path)}', "wb"
 ) as file:
     file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
 
 with open(
-    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+"_metrics_hist"+ "_inf" if infinite else "")}',
+    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+"_metrics_hist"+ inf_path)}',
     "wb",
 ) as file:
     dill.dump(metrics_history, file)
@@ -197,6 +199,6 @@ jax.profiler.save_device_memory_profile(f'{get_savepath()}/{decoder_filename("07
 
 from reusable.util import save_args
 
-save_args("04", args)
+save_args("07", args)
 
 print("Saved args", flush=True)
