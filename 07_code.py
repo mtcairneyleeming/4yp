@@ -30,10 +30,10 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 2,
+        "num_epochs": 200,
         "learning_rate": 1.0e-4,
-        "batch_size": 5,
-        "train_num_batches": 4,
+        "batch_size": 500,
+        "train_num_batches": 400,
         "test_num_batches": 1,
         # MCMC parameters
         "num_warmup": 1000,
