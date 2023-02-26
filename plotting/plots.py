@@ -238,3 +238,29 @@ def plot_training(test, train, title, note="", ax=None, save_path=None, ylims=No
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+
+def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, scale="linear", ax=None, save_path=None):
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+    colours = [plt.cm.tab10(i) for i in range(len(moment_indices))]
+
+    for i,m in enumerate(moments):
+        ax.plot(x_locs, m, label=f"{moment_indices[i]}th moment", color=colours[i])
+
+    if correct_moments:
+        for i,m in enumerate(correct_moments):
+            ax.plot(x_locs, m, color=colours[i], linestyle=":")
+
+    ax.set_xlabel("$x$")
+    ax.set_ylabel("moments")
+    ax.legend()
+    ax.set_yscale(scale)
+    ax.set_title(title)
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
