@@ -20,7 +20,7 @@
 
 export WORKING_DIR=/data/coml-hawkes/lady6235/4yp
 export CONDA_PREFIX=/data/coml-hawkes/lady6235/jax_numpyro_env
-export FILE_TO_RUN=09_code.py
+export FILE_TO_RUN=09_decoder_only_search_grid.py
 
 
 module load Mamba # note we are not using Mamba to build the environment, we just need to load into it
