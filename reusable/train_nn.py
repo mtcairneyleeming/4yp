@@ -109,8 +109,8 @@ def run_training_datastream(
             batch_losses.append(compute_batch_loss(state=state, batch=curr_training_data[j], loss_fn=loss_fn, training=False))
 
         test_state = state
-        test_output = test_state.apply_fn({"params": test_state.params}, curr_training_data[-1], training=False)
-        train_output = test_state.apply_fn({"params": test_state.params}, get_epoch_test_data(i), training=False)
+        train_output = test_state.apply_fn({"params": test_state.params}, curr_training_data[-1], training=False)
+        test_output = test_state.apply_fn({"params": test_state.params}, get_epoch_test_data(i), training=False)
 
         metrics = compute_epoch_metrics(test_state, train_output, test_output)
 
