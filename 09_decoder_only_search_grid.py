@@ -99,8 +99,8 @@ from reusable.loss import MMD_rqk
 print("Starting training", flush=True)
 
 args["description"] = "MMD_rq:"
-args["l_range"] = [1, 10, 25, 50]
-args["a_range"] = [0.01, 0.1, 0.5, 1, 2]
+args["l_range"] = [0.5, 1, 5, 10, 25, 50]
+args["a_range"] = [0.01, 0.1, 0.5, 1, 2, 10, 25, 100]
 
 ar = len(args["a_range"])
 lr = len(args["l_range"])
