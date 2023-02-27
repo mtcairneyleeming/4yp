@@ -147,7 +147,7 @@ gp_draws = plot_gp_predictive(rng_key_predict, x=args["x"], gp_kernel=args["gp_k
 
 print("Starting training", flush=True)
 
-args["description"] = "KLD+ s * MMD_rbf + t * RCL"
+args["description"] = "KLD+ s * MMD_rq + t * RCL"
 args["s_range"] = [1, 10, 25, 50]
 args["t_range"] = [0.01, 0.1, 0.5, 1, 2]
 
@@ -167,7 +167,7 @@ print(s, t)
 
 from reusable.loss import RCL, MMD_rbf, KLD, combo3_loss
 
-loss_fn = combo3_loss(RCL, MMD_rbf(args["mmd_rbf_ls"]), KLD, args["t_range"][t], args["s_range"][s])
+loss_fn = combo3_loss(RCL,  MMD_rqk(args["mmd_rq_ls"], args["mmd_rq_scale"]), KLD, args["t_range"][t], args["s_range"][s])
 
 
 print(loss_fn.__name__, flush=True)
