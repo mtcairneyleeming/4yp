@@ -45,3 +45,38 @@ def moment(order, sample):
         case _:
             raise NotImplementedError()
          
+
+def covariance(sample):
+    """Treating the sample as args["n"] RVs:"""
+    centred = sample - sample_central_moment(1, sample)
+    variance = sample_central_moment(2, sample)
+    #return jnp.divide(centred.T @ centred, variance.T @ variance)
+    return centred.T @ centred
+
+def cokurtosis(sample, order=2):
+    centred = sample - sample_central_moment(1, sample)
+    squared = jnp.power(centred, order)
+    variance = sample_central_moment(order, sample)
+    return jnp.divide(covariance(squared) , variance.T @ variance)
+
+# def moment_matrix(order, sample):
+#     print(sample.shape)
+#     n = sample.shape[0]
+
+    
+
+#     match order:
+#         case 2:
+#             return jnp.cov(sample.T)
+#         case 4:
+#             # eq 3.12 in Mardia 1970
+#             sample_cov = jnp.cov(sample)
+#             print("Cov", sample_cov.shape)
+#             print("Sample T", centred.T.shape)
+#             print("Cov inv", jnp.linalg.inv(sample_cov.T).shape) 
+#             inte = centred.T @ jnp.linalg.inv(sample_cov.T) @ centred
+#             print(inte.shape)
+#             return jnp.mean( jnp.power(inte, 2), axis = )
+#         case _:
+#             raise NotImplementedError()
+
