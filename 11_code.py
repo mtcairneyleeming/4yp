@@ -57,10 +57,10 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 10,
+        "num_epochs": 150,
         "learning_rate": 1.0e-4,
-        "batch_size": 4,
-        "train_num_batches": 10,
+        "batch_size": 400,
+        "train_num_batches": 100,
         "test_num_batches": 1,
         "mmd_rbf_ls": 4.0,
         "11_exp1": {
