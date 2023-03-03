@@ -4,6 +4,7 @@ import jax.numpy as jnp
 from functools import partial
 
 import time
+import signal
 from typing import Callable, Any, Dict
 
 
@@ -124,7 +125,11 @@ def run_training_datastream(
     get_epoch_train/test_data will be called with the index of the current batch
 
     `compute_epoch_metrics` is passed the current state, as well as the outputs of the final state at the end of a epoch, on the last training batch, and the test batch
+    
+    If it recieves a KeyboardInterrupt, it will end early, and return the previous complete epoch.
     """
+
+ 
     state = initial_state
     start = time.time()
     metrics_history = {
@@ -133,42 +138,49 @@ def run_training_datastream(
         "epoch_times": jnp.zeros((num_epochs)),
         "batch_times": jnp.zeros((num_epochs, num_train_batches))
     }
+    prev_state = None
+    try:
+        for i in range(num_epochs):
+            # note this is a different indexing scheme to the Flax tutorial
 
-    for i in range(num_epochs):
-        # note this is a different indexing scheme to the Flax tutorial
+            batch_losses = []
+            batch_times = []
+            curr_training_data = get_epoch_train_data(i)
+            for j in range(num_train_batches):
+                # Run optimization steps over training batches and compute batch metrics
+                
+                    state = training_step(
+                        state, curr_training_data[j], loss_fn=loss_fn
+                    )  # get updated train state (which contains the updated parameters)
+                    batch_losses.append(
+                        compute_batch_loss(state=state, batch=curr_training_data[j], loss_fn=loss_fn, training=False)
+                    )
+                    batch_times.append(time.time() - start)
+                
 
-        batch_losses = []
-        batch_times = []
-        curr_training_data = get_epoch_train_data(i)
-        for j in range(num_train_batches):
-            # Run optimization steps over training batches and compute batch metrics
+            prev_state = state # so that if we fail, we can return a consistent (state, training_data) pair
+            test_state = state
+            train_output = test_state.apply_fn({"params": test_state.params}, curr_training_data[-1], training=False)
+            test_output = test_state.apply_fn({"params": test_state.params}, get_epoch_test_data(i), training=False)
 
-            state = training_step(
-                state, curr_training_data[j], loss_fn=loss_fn
-            )  # get updated train state (which contains the updated parameters)
-            batch_losses.append(
-                compute_batch_loss(state=state, batch=curr_training_data[j], loss_fn=loss_fn, training=False)
-            )
-            batch_times.append(time.time() - start)
+            metrics = compute_epoch_metrics(test_state, train_output, test_output)
 
-        test_state = state
-        train_output = test_state.apply_fn({"params": test_state.params}, curr_training_data[-1], training=False)
-        test_output = test_state.apply_fn({"params": test_state.params}, get_epoch_test_data(i), training=False)
+            metrics["train_loss"] = batch_losses[-1]
+            metrics["train_avg_loss"] = jnp.mean(jnp.array(batch_losses))
+            metrics["test_loss"] = loss_fn(*test_output)
+            metrics["batch_times"] = jnp.array(batch_times)
+            metrics["epoch_times"] = time.time() - start
 
-        metrics = compute_epoch_metrics(test_state, train_output, test_output)
+            for metric, value in metrics.items():
+                if i == 0 and not metric in metrics_history:
+                    metrics_history[metric] = jnp.zeros((num_epochs))
+                metrics_history[metric] = metrics_history[metric].at[i].set(value)
 
-        metrics["train_loss"] = batch_losses[-1]
-        metrics["train_avg_loss"] = jnp.mean(jnp.array(batch_losses))
-        metrics["test_loss"] = loss_fn(*test_output)
-        metrics["batch_times"] = jnp.array(batch_times)
-        metrics["epoch_times"] = time.time() - start
-
-        for metric, value in metrics.items():
-            if i == 0 and not metric in metrics_history:
-                metrics_history[metric] = jnp.zeros((num_epochs))
-            metrics_history[metric] = metrics_history[metric].at[i].set(value)
-
-        if i % 5 == 0:
-            print(f"epoch: {(i+1) }, {metrics}", flush=True)
-    print(f"Done, in {time.time()-start}s ", flush=True)
-    return state, metrics_history
+            if i % 5 == 0:
+                print(f"epoch: {(i+1) }, {metrics}", flush=True)
+        print(f"Done, in {time.time()-start}s ", flush=True)
+        return state, metrics_history
+    except KeyboardInterrupt as e:
+                    metrics_history["interrupted"] = f"Interrupted at {i},{j}"
+                    metrics_history["final_epoch"] = i-1
+                    return prev_state, metrics_history

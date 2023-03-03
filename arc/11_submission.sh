@@ -15,6 +15,13 @@
 #comment out SBATCH --gres=gpu:1
 
 
+# taken from https://dhruveshp.com/blog/2021/signal-propagation-on-slurm/
+#SBATCH --signal=B:TERM@300 # tells the controller
+                        # to send SIGTERM to the job 5 mins
+                        # before its time ends to give it a
+                        # chance for better cleanup.
+
+
 
 
 export WORKING_DIR=/data/coml-hawkes/lady6235/4yp
@@ -51,7 +58,7 @@ tree
 
 echo $SLURM_ARRAY_TASK_ID
 
-python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID $SLURM_JOB_NAME
+exec python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID $SLURM_JOB_NAME
 
 
 # note -p, as each job in the array will try and create the output folder

@@ -1,5 +1,6 @@
 import os
 import dill
+import signal
 
 def get_savepath():
     # work out where to save outputs:
@@ -29,3 +30,15 @@ def decoder_filename(file_code, args, suffix="_decoder"):
         vals.append(str(args.get(p, ".")))
 
     return f"{file_code}_" + "_".join(vals) + suffix
+
+
+def setup_signals():
+    
+    def print_signal(sig, frame):
+        print("Script recieved signal:", sig)
+        if sig == 15:
+            print("SIGTERM recieved, raising SIGINT")
+            raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, print_signal)
+    signal.signal(signal.SIGCONT, print_signal)

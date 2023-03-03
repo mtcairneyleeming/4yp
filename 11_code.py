@@ -36,9 +36,10 @@ from reusable.gp import OneDGP
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
 from reusable.train_nn import SimpleTrainState, run_training
-from reusable.util import decoder_filename, get_savepath, save_args
+from reusable.util import decoder_filename, get_savepath, save_args, setup_signals
 from reusable.vae import VAE
 
+setup_signals()
 print("Starting work", flush=True)
 
 args = {
@@ -56,10 +57,10 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 150,
+        "num_epochs": 10,
         "learning_rate": 1.0e-4,
-        "batch_size": 400,
-        "train_num_batches": 100,
+        "batch_size": 4,
+        "train_num_batches": 10,
         "test_num_batches": 1,
         "mmd_rbf_ls": 4.0,
         "11_exp1": {
@@ -169,6 +170,8 @@ init_time = time.time()
 
 print("Starting training", flush=True)
 
+
+
 for loss_fn in loss_fns:
     name = f"{loss_fn.__name__}_{experiment}_{index}"
 
@@ -185,6 +188,7 @@ for loss_fn in loss_fns:
 
         with open(f'{get_savepath()}/{decoder_filename("11", args, suffix=name+"_metrics_hist")}', "wb") as file:
             dill.dump(metrics_history, file)
+        print(f"Saved {name}")
     else:
         prev_history = {}
         for i, _ in enumerate(Brange):
@@ -204,3 +208,11 @@ for loss_fn in loss_fns:
 
             with open(f'{get_savepath()}/{decoder_filename("11", args, suffix=name+"_metrics_hist")}', "wb") as file:
                 dill.dump(prev_history, file)
+
+            print(f"Saved {name}")
+
+            if "interrupted" in metrics_history:
+                print("SIGTERM sent, not iterating")
+                break
+
+
