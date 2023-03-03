@@ -1,4 +1,3 @@
-
 from flax.training import train_state  # Useful dataclass to keep train state
 import jax
 import jax.numpy as jnp
@@ -49,27 +48,65 @@ def run_training(
     initial_state: SimpleTrainState,
 ):
     """
-        Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`. 
-        
-        `train_draws` is batched, whilst `test_draws` is a single batch for use for incremental metric updates.
+    Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`.
 
-        `compute_epoch_metrics` is passed the current state, as well as the outputs of the final state at the end of a epoch, on the last training batch, and the test batch
+    `train_draws` is batched, whilst `test_draws` is a single batch for use for incremental metric updates.
+
+    `compute_epoch_metrics` is passed the current state, as well as the outputs of the final state at the end of a epoch, on the last training batch, and the test batch
     """
-    return run_training_datastream(loss_fn, compute_epoch_metrics, num_epochs, train_draws.shape[0], lambda i: train_draws, lambda i: test_draws[-1], initial_state)
+    return run_training_datastream(
+        loss_fn,
+        compute_epoch_metrics,
+        num_epochs,
+        train_draws.shape[0],
+        lambda i: train_draws,
+        lambda i: test_draws[-1],
+        initial_state,
+    )
 
-def run_training_infinite(
+def run_training_shuffle(
     loss_fn,
     compute_epoch_metrics: Callable[[SimpleTrainState, Any, Any], Dict],
-        all_train_draws: jax.Array,
+    num_epochs: int,
+    train_draws: jax.Array,
     test_draws: jax.Array,
     initial_state: SimpleTrainState,
 ):
     """
-        Same as run_training, except that fresh training data is used at each epoch
+    Same as run_training, except we shuffle the train_draws on each epoch
     """
-    return run_training_datastream(loss_fn, compute_epoch_metrics, all_train_draws.shape[0], all_train_draws.shape[1], lambda i: all_train_draws[i], lambda i: test_draws[-1], initial_state)
+    raise NotImplementedError()
+    return run_training_datastream(
+        loss_fn,
+        compute_epoch_metrics,
+        num_epochs,
+        train_draws.shape[0],
+        lambda i: train_draws,
+        lambda i: test_draws[-1],
+        initial_state,
+    )
 
 
+
+def run_training_infinite(
+    loss_fn,
+    compute_epoch_metrics: Callable[[SimpleTrainState, Any, Any], Dict],
+    all_train_draws: jax.Array,
+    test_draws: jax.Array,
+    initial_state: SimpleTrainState,
+):
+    """
+    Same as run_training, except that fresh training data is used at each epoch
+    """
+    return run_training_datastream(
+        loss_fn,
+        compute_epoch_metrics,
+        all_train_draws.shape[0],
+        all_train_draws.shape[1],
+        lambda i: all_train_draws[i],
+        lambda i: test_draws[-1],
+        initial_state,
+    )
 
 
 def run_training_datastream(
@@ -79,34 +116,40 @@ def run_training_datastream(
     num_train_batches: int,
     get_epoch_train_data: Callable[[int], jax.Array],
     get_epoch_test_data: Callable[[int], jax.Array],
-    initial_state: SimpleTrainState,
+    initial_state: SimpleTrainState
 ):
     """
-        Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`. Perform `num_train_batches` batch steps in each epoch.
-        
-        get_epoch_train/test_data will be called with the index of the current batch
-        
-        `compute_epoch_metrics` is passed the current state, as well as the outputs of the final state at the end of a epoch, on the last training batch, and the test batch
+    Run `num_epochs` training steps, starting from `initial_state`, using `loss_fn`. Perform `num_train_batches` batch steps in each epoch.
+
+    get_epoch_train/test_data will be called with the index of the current batch
+
+    `compute_epoch_metrics` is passed the current state, as well as the outputs of the final state at the end of a epoch, on the last training batch, and the test batch
     """
     state = initial_state
     start = time.time()
     metrics_history = {
         "train_loss": jnp.zeros((num_epochs)),
         "test_loss": jnp.zeros((num_epochs)),
+        "epoch_times": jnp.zeros((num_epochs)),
+        "batch_times": jnp.zeros((num_epochs, num_train_batches))
     }
 
     for i in range(num_epochs):
         # note this is a different indexing scheme to the Flax tutorial
 
         batch_losses = []
+        batch_times = []
         curr_training_data = get_epoch_train_data(i)
         for j in range(num_train_batches):
             # Run optimization steps over training batches and compute batch metrics
-            
+
             state = training_step(
                 state, curr_training_data[j], loss_fn=loss_fn
             )  # get updated train state (which contains the updated parameters)
-            batch_losses.append(compute_batch_loss(state=state, batch=curr_training_data[j], loss_fn=loss_fn, training=False))
+            batch_losses.append(
+                compute_batch_loss(state=state, batch=curr_training_data[j], loss_fn=loss_fn, training=False)
+            )
+            batch_times.append(time.time() - start)
 
         test_state = state
         train_output = test_state.apply_fn({"params": test_state.params}, curr_training_data[-1], training=False)
@@ -117,6 +160,8 @@ def run_training_datastream(
         metrics["train_loss"] = batch_losses[-1]
         metrics["train_avg_loss"] = jnp.mean(jnp.array(batch_losses))
         metrics["test_loss"] = loss_fn(*test_output)
+        metrics["batch_times"] = jnp.array(batch_times)
+        metrics["epoch_times"] = time.time() - start
 
         for metric, value in metrics.items():
             if i == 0 and not metric in metrics_history:
@@ -126,5 +171,4 @@ def run_training_datastream(
         if i % 5 == 0:
             print(f"epoch: {(i+1) }, {metrics}", flush=True)
     print(f"Done, in {time.time()-start}s ", flush=True)
-    return state, metrics_history 
-
+    return state, metrics_history
