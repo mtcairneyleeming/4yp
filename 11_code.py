@@ -211,7 +211,7 @@ for loss_fn in loss_fns:
 
             print(f"Saved {name}")
 
-            if "interrupted" in metrics_history:
+            if "interrupted" in h:
                 print("SIGTERM sent, not iterating")
                 break
 
