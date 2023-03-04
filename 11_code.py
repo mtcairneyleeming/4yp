@@ -36,7 +36,7 @@ from reusable.gp import OneDGP
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
 from reusable.train_nn import SimpleTrainState, run_training
-from reusable.util import decoder_filename, get_savepath, save_args, setup_signals
+from reusable.util import decoder_filename, get_savepath, save_args, save_training, setup_signals
 from reusable.vae import VAE
 
 setup_signals()
@@ -183,12 +183,8 @@ for loss_fn in loss_fns:
             loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
         )
 
-        with open(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', "wb") as file:
-            file.write(serialization.to_bytes(freeze({"params": final_state.params})))
+        save_training(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', final_state, metrics_history)
 
-        with open(f'{get_savepath()}/{decoder_filename("11", args, suffix=name+"_metrics_hist")}', "wb") as file:
-            dill.dump(metrics_history, file)
-        print(f"Saved {name}")
     else:
         prev_history = {}
         for i, _ in enumerate(Brange):
@@ -197,19 +193,17 @@ for loss_fn in loss_fns:
 
             state, h = run_training(loss_fn, lambda *_: {}, next_range, train_draws, test_draws, state)
 
-            with open(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', "wb") as file:
-                file.write(serialization.to_bytes(freeze({"params": state.params})))
 
             if i > 0:
                 for metric, value in h.items():
-                    prev_history[metric] = jnp.append(prev_history[metric], value, axis=0)
+                    if metric in ["interrupted" | "final_epoch"]:
+                        prev_history[metric] = value
+                    else:
+                        prev_history[metric] = jnp.append(prev_history[metric], value, axis=0)
             else:
                 prev_history = h
 
-            with open(f'{get_savepath()}/{decoder_filename("11", args, suffix=name+"_metrics_hist")}', "wb") as file:
-                dill.dump(prev_history, file)
-
-            print(f"Saved {name}")
+            save_training(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', state, prev_history)
 
             if "interrupted" in h:
                 print("SIGTERM sent, not iterating")
