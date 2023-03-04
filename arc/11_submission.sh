@@ -32,8 +32,8 @@ export FILE_TO_RUN=11_code.py
 module load Mamba # note we are not using Mamba to build the environment, we just need to load into it
 module load CUDA/11.6.0
 
-echo "CUDA Devices(s) allocated: $CUDA_VISIBLE_DEVICES"
-nvidia-smi
+#echo "CUDA Devices(s) allocated: $CUDA_VISIBLE_DEVICES"
+#nvidia-smi
 
 
 # set the Anaconda environment, and activate it:
@@ -50,16 +50,19 @@ cp -R $WORKING_DIR/plotting   	. # the code we've actually written
 cp -R $WORKING_DIR/$FILE_TO_RUN . # the code we've actually written
 
 
-echo "Environment variables:"
-printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus etc.)
-echo "Files copied across:"
-tree
+#echo "Environment variables:"
+#printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus etc.)
+#echo "Files copied across:"
+#tree
+
+trap 'echo signal recieved in BATCH!; kill -15 "${PID}"; wait "${PID}";' SIGINT SIGTERM
 
 
-echo $SLURM_ARRAY_TASK_ID
+python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID $SLURM_JOB_NAME &
 
-exec python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID $SLURM_JOB_NAME
+PID="$!"
 
+wait "${PID}"
 
 # note -p, as each job in the array will try and create the output folder
 mkdir -p $WORKING_DIR/arc/outputs/$SLURM_ARRAY_JOB_ID
