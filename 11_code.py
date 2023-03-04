@@ -196,7 +196,7 @@ for loss_fn in loss_fns:
 
             if i > 0:
                 for metric, value in h.items():
-                    if metric in ["interrupted" | "final_epoch"]:
+                    if metric in ["interrupted", "final_epoch"]:
                         prev_history[metric] = value
                     else:
                         prev_history[metric] = jnp.append(prev_history[metric], value, axis=0)
