@@ -1,6 +1,8 @@
 import os
 import dill
 import signal
+from flax import serialization
+from flax.core.frozen_dict import freeze
 
 def get_savepath():
     # work out where to save outputs:
@@ -42,3 +44,12 @@ def setup_signals():
 
     signal.signal(signal.SIGTERM, print_signal)
     signal.signal(signal.SIGCONT, print_signal)
+
+def save_training(path, final_state, metrics_history):
+    if final_state is not None:
+            with open(path, "wb") as file:
+                file.write(serialization.to_bytes(freeze({"params": final_state.params})))
+
+    with open(path+"_metrics_hist", "wb") as file:
+        dill.dump(metrics_history, file)
+    print(f"Saved {path}")
