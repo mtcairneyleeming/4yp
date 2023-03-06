@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
+import numpy as onp
 from numpyro.diagnostics import hpdi
 
 
@@ -263,8 +264,8 @@ def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, s
     colours = [plt.cm.tab10(i) for i in range(len(moment_indices))]
 
     for i, m in enumerate(moments):
-        ax.plot(x_locs, m, color=colours[i], label= f"{moment_indices[i]}th moment")
-        ax.text(x_locs[-1] + 0.01* i, m[-1], s= f"{moment_indices[i]}", va="center", fontsize=14, color=colours[i])
+        ax.plot(x_locs, m, color=colours[i], label=f"{moment_indices[i]}th moment")
+        ax.text(x_locs[-1] + 0.01 * i, m[-1], s=f"{moment_indices[i]}", va="center", fontsize=14, color=colours[i])
 
     if correct_moments:
         for i, m in enumerate(correct_moments):
@@ -272,7 +273,7 @@ def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, s
 
     ax.set_xlabel("$x$")
     ax.set_ylabel("moments")
-    #ax.legend()
+    # ax.legend()
     ax.set_yscale(scale)
     ax.set_title(title)
 
@@ -285,12 +286,60 @@ def plot_matrix(mat, title, vmin=None, vmax=None, ax=None, save_path=None):
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-
     cmap_choice = "plasma"
 
     ax.imshow(mat, cmap=cmap_choice, vmin=vmin, vmax=vmax, norm="linear")
     ax.axis("off")
     ax.set_title(title)
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_relative=False, ax=None, save_path=None):
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+    for i, label in enumerate(curve_labels):
+        ax.plot(x, times[i], label=label)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel("time difference" if is_relative else "time")
+    ax.set_title(title)
+    ax.legend(title=legend_title)
+
+    if is_relative:
+        ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x))
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None, save_path=None):
+    if fig is None:
+        fig = plt.figure()
+
+    ax = fig.add_subplot(111)
+
+    mat = onp.array(mat)
+    mask = onp.array(mask)
+
+    masked_times = onp.ma.array(mat, mask=mask)
+
+    current_cmap = plt.get_cmap()
+    current_cmap.set_bad(color="red")
+
+    plotted = ax.matshow(masked_times, cmap=current_cmap)
+
+    ax.xaxis.set_label_position("top")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(onp.arange(0, len(xticks)), xticks)
+    ax.set_yticks(onp.arange(0, len(yticks)), yticks)
+
+    fig.colorbar(plotted, ax=ax)
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
