@@ -65,12 +65,9 @@ def save_training(path, final_state, metrics_history):
     print(f"Saved {path}")
 
 
-def update_args_once(args, key, value, update_epochs=False):
-    if key in ["n", "train_num_batches", "batch_size"]:
+def update_args_once(args, key, value):
+    if key in ["n", "train_num_batches", "batch_size", "num_epochs"]:
         args[key] = value
-    elif key == "num_epochs":
-        if update_epochs:
-            args[key] = value
     elif key == "vae_scale_factor":
         args["hidden_dim1"] = int(value * 35)
         args["hidden_dim2"] = int(value * 32)
@@ -80,7 +77,7 @@ def update_args_once(args, key, value, update_epochs=False):
     return args
 
 
-def update_args_11(args, experiment, a, b, update_epochs=False):
+def update_args_11(args, experiment, a, b):
 
     Arange = args[experiment]["Arange"]
     Brange = args[experiment]["Brange"]

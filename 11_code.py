@@ -36,7 +36,7 @@ from reusable.gp import OneDGP
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
 from reusable.train_nn import SimpleTrainState, run_training
-from reusable.util import decoder_filename, get_savepath, save_args, save_training, setup_signals
+from reusable.util import decoder_filename, get_savepath, save_args, save_training, setup_signals, update_args_11
 from reusable.vae import VAE
 
 setup_signals()
@@ -57,19 +57,19 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 150,
+        "num_epochs": 200,
         "learning_rate": 1.0e-4,
         "batch_size": 400,
-        "train_num_batches": 100,
-        "test_num_batches": 1,
+        "train_num_batches": 300,
+        "test_num_batches": 20,
         "mmd_rbf_ls": 4.0,
-        "11_exp1": {
+        "11_exp5": {
             "Arange": [25, 50, 100, 150, 200, 225, 250],
             "Brange": [50, 75, 100, 125, 150, 175, 200],
             "Adesc": "n",
             "Bdesc": "train_num_batches",
         },
-        "11_exp2": {
+        "11_exp6": {
             "Arange": [
                 50,
                 100,
@@ -83,13 +83,13 @@ args.update(
             "Adesc": "batch_size",
             "Bdesc": "train_num_batches",
         },
-        "11_exp3": {
+        "11_exp7": {
             "Arange": [25, 50, 100, 150, 200, 225, 250],
             "Brange": [50, 100, 150, 200, 250, 300, 350, 400],
             "Adesc": "n",
             "Bdesc": "num_epochs",
         },
-        "11_exp4": {
+        "11_exp8": {
             "Arange": [25, 50, 100, 150, 200, 225, 250],
             "Brange": [0.25, 0.5, 1, 1.5, 2, 3, 4],
             "Adesc": "n",
@@ -114,28 +114,13 @@ a = index % ar
 
 print(f"Exp {experiment}, a={a}/{ar-1}, b={b}/{br-1}, index={index}/{ar*br-1} [indices 0-(n-1)]")
 
-match experiment:
-    case "11_exp1":
-        args["n"] = Arange[a]
-        args["train_num_batches"] = Brange[b]
-    case "11_exp2":
-        args["batch_size"] = Arange[a]
-        args["train_num_batches"] = Brange[b]
-    case "11_exp3":
-        args["n"] = Arange[a]
-        # will save at intermediate stops
-    case "11_exp4":
-        args["n"] = Arange[a]
-        args["hidden_dim1"] = int(Brange[b] * 35)
-        args["hidden_dim2"] = int(Brange[b] * 32)
-        args["latent_dim"] = int(Brange[b] * 30)
-    case _:
-        raise NotImplementedError(f"Help! {experiment}")
+
+update_args_11(args, experiment, a, b)
 
 args["x"] = jnp.arange(0, 1, 1 / args["n"])  # if we have changed it!
 
 loss_fns = [combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(args["mmd_rbf_ls"]), 0.01, 1, 10)]
-
+args["loss_fns"] = [l.__name__ for l in loss_fns]
 rng_key, rng_key_train, rng_key_test = random.split(args["rng_key"], 3)
 
 start_time = time.time()
@@ -171,12 +156,11 @@ init_time = time.time()
 print("Starting training", flush=True)
 
 
-
 for loss_fn in loss_fns:
     name = f"{loss_fn.__name__}_{experiment}_{index}"
 
     print(name, flush=True)
-    if experiment != "11_exp3":
+    if args[experiment]["Bdesc"] != "num_epochs" and args[experiment]["Adesc"] != "num_epochs":
         # timing is now automatic in run_training
 
         final_state, metrics_history = run_training(
@@ -187,26 +171,33 @@ for loss_fn in loss_fns:
 
     else:
         prev_history = {}
-        for i, _ in enumerate(Brange):
-            name = f"{loss_fn.__name__}_{experiment}_{a}_{i}"
-            next_range = Brange[i] - Brange[i - 1] if i > 0 else Brange[0]
+        iterate_list = Brange if args[experiment]["Bdesc"] == "num_epochs" else Arange
+        for j, _ in enumerate(iterate_list):
+            new_index = j * ar + a
+            name = f"{loss_fn.__name__}_{experiment}_{new_index}"
+            next_range = iterate_list[j] - iterate_list[j - 1] if j > 0 else iterate_list[0]
 
             state, h = run_training(loss_fn, lambda *_: {}, next_range, train_draws, test_draws, state)
 
-
-            if i > 0:
+            if j > 0:
                 for metric, value in h.items():
                     if metric in ["interrupted", "final_epoch"]:
                         prev_history[metric] = value
+                    elif metric in ["epoch_times", "batch_times"]: # correct fact that we don't pass times back in to run_training
+                        prev_history[metric] = jnp.append(prev_history[metric], value + prev_history["epoch_times"][-1], axis=0)
                     else:
                         prev_history[metric] = jnp.append(prev_history[metric], value, axis=0)
+                print(prev_history)
+                raise NotImplementedError()
+
             else:
                 prev_history = h
+            
+            
+            update_args_11(args, experiment, a, b) # set num_epochs correctly now!
 
             save_training(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', state, prev_history)
 
             if "interrupted" in h:
                 print("SIGTERM sent, not iterating")
-                break
-
-
+                sys.exit(0) 
