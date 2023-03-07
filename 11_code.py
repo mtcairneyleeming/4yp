@@ -187,8 +187,6 @@ for loss_fn in loss_fns:
                         prev_history[metric] = jnp.append(prev_history[metric], value + prev_history["epoch_times"][-1], axis=0)
                     else:
                         prev_history[metric] = jnp.append(prev_history[metric], value, axis=0)
-                print(prev_history)
-                raise NotImplementedError()
 
             else:
                 prev_history = h
