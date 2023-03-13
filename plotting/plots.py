@@ -281,16 +281,22 @@ def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, s
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_matrix(mat, title, vmin=None, vmax=None, ax=None, save_path=None):
-    if ax is None:
+def plot_matrix(mat, title, vmin=None, vmax=None, fig=None, save_path=None):
+    if fig is None:
+        print("Created fig")
         fig = plt.figure()
-        ax = fig.add_subplot(111)
 
-    cmap_choice = "plasma"
+    ax = fig.subplots(1, 1) #add_axes([.1, .1, 0.8, 0.8])
 
-    ax.imshow(mat, cmap=cmap_choice, vmin=vmin, vmax=vmax, norm="linear")
+    current_cmap = plt.get_cmap("plasma")
+    current_cmap.set_bad(color="red")
+
+    plotted = ax.matshow(mat, cmap=current_cmap, vmin=vmin, vmax=vmax, norm="log")
     ax.axis("off")
     ax.set_title(title)
+
+
+    fig.colorbar(plotted, ax=ax)
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -320,7 +326,7 @@ def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None
     if fig is None:
         fig = plt.figure()
 
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot()
 
     mat = onp.array(mat)
     mask = onp.array(mask)
