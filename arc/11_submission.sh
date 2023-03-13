@@ -11,7 +11,7 @@
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
 
 
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #comment out SBATCH --gres=gpu:1
 
 
