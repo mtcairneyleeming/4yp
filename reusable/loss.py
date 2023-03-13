@@ -33,7 +33,7 @@ def MMD_rbf_sum(lss, mem_efficient=False):
         def func(y, reconstructed_y, *args):
             return mmd_matrix_impl(y, reconstructed_y, lambda x, z: sum([rbf_kernel(x, z, ls) for ls in lss]) , normalise=True)
     
-    func.__name__ =  f"mmd_rbf_sum:"  + ";".join([str(l) for l in lss])
+    func.__name__ =  f"mmd_rbf_sum-"  + ";".join([str(l) for l in lss])
     return func
 
 def MMD_rqk(ls, scale, mem_efficient=False):
@@ -50,7 +50,7 @@ def MMD_rqk_sum(lss, scales, mem_efficient=False):
         def func(y, reconstructed_y, *args):
             return mmd_matrix_impl(y, reconstructed_y, lambda x, z: sum([rq_kernel(x, z, ls, scale) for ls, scale in zip(lss, scales)]), normalise=True)
         
-    func.__name__ =  f"mmd_rqk_sum:"  + ";".join([f"{str(l)},{str(s)}" for l,s in zip(lss, scales)])
+    func.__name__ =  f"mmd_rqk_sum-"  + ";".join([f"{str(l)},{str(s)}" for l,s in zip(lss, scales)])
     return func
 
 
