@@ -192,7 +192,7 @@ for loss_fn in loss_fns:
                 prev_history = h
             
             
-            update_args_11(args, experiment, a, b) # set num_epochs correctly now!
+            args = update_args_11(args, experiment, a, b) # set num_epochs correctly now!
 
             save_training(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', state, prev_history)
 
