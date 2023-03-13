@@ -72,17 +72,22 @@ def run_training_shuffle(
     train_draws: jax.Array,
     test_draws: jax.Array,
     initial_state: SimpleTrainState,
+    shuffle_key: jax.random.KeyArray
 ):
     """
     Same as run_training, except we shuffle the train_draws on each epoch
     """
-    raise NotImplementedError()
+    def shuffler(i: int):
+        key = jax.random.fold_in(shuffle_key, i)
+        shuffled = jax.random.shuffle(key, train_draws, 0)
+        return shuffled
+
     return run_training_datastream(
         loss_fn,
         compute_epoch_metrics,
         num_epochs,
         train_draws.shape[0],
-        lambda i: train_draws,
+        shuffler,
         lambda i: test_draws[-1],
         initial_state,
     )
