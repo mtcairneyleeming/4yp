@@ -20,6 +20,11 @@ import sys
 index = int(sys.argv[1])
 experiment = sys.argv[2]
 
+if len(sys.argv) > 3:
+    loss_fn_choice = int(sys.argv[1])
+else:
+    loss_fn_choice = None
+
 print(f"Starting experiment {experiment}, index {index}", flush=True)
 
 
@@ -95,6 +100,12 @@ args.update(
             "Adesc": "n",
             "Bdesc": "vae_scale_factor",
         },
+        "11_exp9": {
+            "Arange": [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800],
+            "Brange": [50, 100, 200, 300, 400, 500, 600],
+            "Adesc": "n",
+            "Bdesc": "train_num_batches",
+        },
         "experiment": experiment,
     }
 )
@@ -120,6 +131,10 @@ update_args_11(args, experiment, a, b)
 args["x"] = jnp.arange(0, 1, 1 / args["n"])  # if we have changed it!
 
 loss_fns = [combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(args["mmd_rbf_ls"]), 0.01, 1, 10)]
+
+if loss_fn_choice is not None:
+    loss_fns = [loss_fns[loss_fn_choice]]
+
 args["loss_fns"] = [l.__name__ for l in loss_fns]
 rng_key, rng_key_train, rng_key_test = random.split(args["rng_key"], 3)
 
