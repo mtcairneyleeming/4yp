@@ -27,9 +27,10 @@ def esq_kernel(x,  var, length, jitter=1e-6):
     # due to numerical instability, the smallest eigenvalue may sometimes be <0 - 
     # thus we calculate the smallest eigenvalue, and if negative,
     # we subtract it from the diagonal. 
-    correction = jnp.minimum(-jnp.linalg.eigh(k)[0][..., 0], 0)
-    jax.debug.print("Kernel eigenvalue correction: {c} * 1e-6", c=correction * 1e6)
+    correction = 2 * jnp.maximum(-jnp.linalg.eigh(k)[0][..., 0], 0)
+    #jax.debug.print("Kernel eigenvalue correction: {c}", c=correction)
     k += (jitter +correction) * jnp.eye(x.shape[0])
+    #print(jnp.linalg.eigh(k)[0])
     return k
 
 
