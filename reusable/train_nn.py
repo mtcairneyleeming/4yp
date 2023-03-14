@@ -79,7 +79,7 @@ def run_training_shuffle(
     """
     def shuffler(i: int):
         key = jax.random.fold_in(shuffle_key, i)
-        shuffled = jax.random.shuffle(key, train_draws, 0)
+        shuffled = jax.random.permutation(key, train_draws, 0, independent=False)
         return shuffled
 
     return run_training_datastream(
