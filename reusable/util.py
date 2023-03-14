@@ -77,15 +77,14 @@ def update_args_once(args, key, value):
     return args
 
 
-def update_args_11(args, experiment, a, b):
+def update_args_11(args, exp_details, i, j):
 
-    Arange = args[experiment]["Arange"]
-    Brange = args[experiment]["Brange"]
-    Adesc = args[experiment]["Adesc"]
-    Bdesc = args[experiment]["Bdesc"]
-
-    args = update_args_once(args, Adesc, Arange[a])
-    args = update_args_once(args, Bdesc, Brange[b])
+    Arange = exp_details["Arange"]
+    Brange = exp_details["Brange"]
+    Adesc = exp_details["Adesc"]
+    Bdesc = exp_details["Bdesc"]
+    args = update_args_once(args, Adesc, Arange[i])
+    args = update_args_once(args, Bdesc, Brange[j])
 
 
     args["x"] = jnp.arange(0, 1, 1 / args["n"])  # if we have changed it!

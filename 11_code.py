@@ -123,7 +123,7 @@ a = index % ar
 print(f"Exp {experiment}, a={a}/{ar-1}, b={b}/{br-1}, index={index}/{ar*br-1} [indices 0-(n-1)]")
 
 
-update_args_11(args, experiment, a, b)
+update_args_11(args, args[experiment], a, b)
 
 args["x"] = jnp.arange(0, 1, 1 / args["n"])  # if we have changed it!
 
@@ -196,19 +196,23 @@ for loss_fn in loss_fns:
                 for metric, value in h.items():
                     if metric in ["interrupted", "final_epoch"]:
                         prev_history[metric] = value
-                    elif metric in ["epoch_times", "batch_times"]: # correct fact that we don't pass times back in to run_training
-                        prev_history[metric] = jnp.append(prev_history[metric], value + prev_history["epoch_times"][-1], axis=0)
+                    elif metric in [
+                        "epoch_times",
+                        "batch_times",
+                    ]:  # correct fact that we don't pass times back in to run_training
+                        prev_history[metric] = jnp.append(
+                            prev_history[metric], value + prev_history["epoch_times"][-1], axis=0
+                        )
                     else:
                         prev_history[metric] = jnp.append(prev_history[metric], value, axis=0)
 
             else:
                 prev_history = h
-            
-            
-            args = update_args_11(args, experiment, a, b) # set num_epochs correctly now!
+
+            args = update_args_11(args, args[experiment], a, b)  # set num_epochs correctly now!
 
             save_training(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', state, prev_history)
 
             if "interrupted" in h:
                 print("SIGTERM sent, not iterating")
-                sys.exit(0) 
+                sys.exit(0)
