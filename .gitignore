@@ -1,6 +1,9 @@
 gen_plots
 learnt_models
 
+
+.vscode
+
 arc/outputs
 arc/reports
 
