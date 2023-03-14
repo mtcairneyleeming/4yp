@@ -1,37 +1,64 @@
 import jax.numpy as jnp
-
+import jax.random as random
 
 from numpyro.infer import Predictive
 import numpyro
 import numpyro.distributions as dist
 
 
-def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y"):
+def __gen_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access, jitter):
     pred = Predictive(gp_model, num_samples=batch_size)
-    draws = pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=1e-6)[draw_access]
+    draws = pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=jitter)[draw_access]
+
 
     return draws
 
-def get_batches_generator(x, gp_model, gp_kernel, num_batches, batch_size, draw_access="y"):
+def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y", jitter=1e-6):
+    all_generated = 0 # total number of samples generated, incl NaNs
+    num_successes = 0 # total number of non-NaN samples
+    draws = None
+    key = rng_key
+    while all_generated <= 5 * batch_size:
+        print(f"Looping, need {batch_size - num_successes}")
+        key, new_key = random.split(key, 2) # otherwise will just generate the same data!
+        new_draws = __gen_batch(x, gp_model, gp_kernel, batch_size - num_successes, new_key, draw_access, jitter)
+
+        nan_locs= jnp.any(jnp.isnan(new_draws), axis=-1) # so we get 1 
+        all_generated += batch_size - num_successes
+        num_successes += batch_size - num_successes -jnp.count_nonzero(nan_locs)
+        
+        filtered = new_draws[~nan_locs]
+ 
+        if draws == None:
+            draws = filtered
+        else:
+            draws = jnp.concatenate((draws, filtered), axis=0)
+
+        if num_successes == batch_size:
+            print(f"Used {all_generated}")
+            return draws
+    raise Exception(f"failed to generate enough non-Nans {num_successes}/{batch_size}, attempts: {all_generated}")
+
+def get_batches_generator(x, gp_model, gp_kernel, num_batches, batch_size, draw_access="y", jitter=1e-6):
     pred = Predictive(gp_model, num_samples=num_batches * batch_size)
 
     def func(rng_key):
-        draws =  pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=1e-6)[draw_access]
+        draws =  pred(rng_key, x=x, gp_kernel=gp_kernel, jitter=jitter)[draw_access]
         return jnp.reshape(draws, (num_batches, batch_size, -1))
 
     return func
 
-def gen_all_gp_batches(x, gp_model, gp_kernel, num_epochs, num_batches, batch_size, rng_key, draw_access="y"):
+def gen_all_gp_batches(x, gp_model, gp_kernel, num_epochs, num_batches, batch_size, rng_key, draw_access="y", jitter=1e-6):
 
-    draws = gen_one_batch(x, gp_model, gp_kernel, num_epochs* num_batches * batch_size, rng_key, draw_access)
+    draws = gen_one_batch(x, gp_model, gp_kernel, num_epochs* num_batches * batch_size, rng_key, draw_access, jitter)
 
     # batch these [note above ensures there are the right no. of elements], so the reshape works perfectly
     draws = jnp.reshape(draws, (num_epochs, num_batches, batch_size, -1))  # note the last shape size will be args["n"]
     return draws
 
-def gen_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y"):
+def gen_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y", jitter=1e-6):
 
-    draws = gen_one_batch(x, gp_model, gp_kernel, num_batches * batch_size, rng_key, draw_access)
+    draws = gen_one_batch(x, gp_model, gp_kernel, num_batches * batch_size, rng_key, draw_access, jitter)
 
     # batch these [note above ensures there are the right no. of elements], so the reshape works perfectly
     draws = jnp.reshape(draws, (num_batches, batch_size, -1))  # note the last shape size will be args["n"]
