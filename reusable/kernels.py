@@ -18,19 +18,19 @@ def sq_euclidian_dist(x, z):
     return delta
 
 
-def esq_kernel(x,  var, length, jitter=1e-6):
+def esq_kernel(x,  var, length, jitter=2e-5):
     """For GPs only!!! as it returns a matrix"""
     dist = sq_euclidian_dist(x, x)
 
     deltaXsq = dist / (length**2)
     k = var * jnp.exp(-0.5 * deltaXsq)
-    # due to numerical instability, the smallest eigenvalue may sometimes be <0 - 
-    # thus we calculate the smallest eigenvalue, and if negative,
-    # we subtract it from the diagonal. 
-    correction = 2 * jnp.maximum(-jnp.linalg.eigh(k)[0][..., 0], 0)
-    #jax.debug.print("Kernel eigenvalue correction: {c}", c=correction)
+    #jax.debug.print("{c}", c=-jnp.linalg.eigh(k)[0][..., 0])
+    correction = 0 # the code below works, but runs very very slowly
+    # # due to numerical instability, the smallest eigenvalue may sometimes be <0 - 
+    # # thus we calculate the smallest eigenvalue, and if negative,
+    # # we subtract it from the diagonal. 
+    # correction = 2 * jnp.maximum(-jnp.linalg.eigh(k)[0][..., 0], 0)
     k += (jitter +correction) * jnp.eye(x.shape[0])
-    #print(jnp.linalg.eigh(k)[0])
     return k
 
 

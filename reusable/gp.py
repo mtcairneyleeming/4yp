@@ -6,7 +6,7 @@ import numpyro
 import numpyro.distributions as dist
 
 
-def OneDGP(gp_kernel, x, jitter=1e-6, var=None, length=None, y=None, noise=False):
+def OneDGP(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, noise=False):
     """The original, basic GP, with the length sampled from a fixed prior"""
     if length==None:
         length = numpyro.sample("kernel_length", dist.InverseGamma(4,1))
