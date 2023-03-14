@@ -21,19 +21,16 @@ index = int(sys.argv[1])
 experiment = sys.argv[2]
 
 if len(sys.argv) > 3:
-    loss_fn_choice = int(sys.argv[1])
+    loss_fn_choice = int(sys.argv[3])
 else:
     loss_fn_choice = None
 
 print(f"Starting experiment {experiment}, index {index}", flush=True)
 
 
-import dill
 import jax.numpy as jnp
 import jax.random as random
 import optax
-from flax import serialization
-from flax.core.frozen_dict import freeze
 from jax import random
 
 from reusable.data import gen_gp_batches
@@ -118,7 +115,7 @@ Arange = args[experiment]["Arange"]
 Brange = args[experiment]["Brange"]
 
 ar = len(Arange)
-br = len(Arange)
+br = len(Brange)
 
 b = index // ar
 a = index % ar
@@ -136,6 +133,7 @@ if loss_fn_choice is not None:
     loss_fns = [loss_fns[loss_fn_choice]]
 
 args["loss_fns"] = [l.__name__ for l in loss_fns]
+
 rng_key, rng_key_train, rng_key_test = random.split(args["rng_key"], 3)
 
 start_time = time.time()
