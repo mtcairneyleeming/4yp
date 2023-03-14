@@ -1,10 +1,8 @@
 import jax.numpy as jnp
+import jax.debug 
 
-
-def euclidian_dist(x, z):
+def sq_euclidian_dist(x, z):
     """Euclidean distance between each point in x,z, suitable for JAX differentiation/etc. Liza's code"""
-    x = jnp.array(x)
-    z = jnp.array(z)
     if len(x.shape) == 1:
         x = x.reshape(x.shape[0], 1)
     if len(z.shape) == 1:
@@ -17,15 +15,21 @@ def euclidian_dist(x, z):
         x_d = x[:, d]
         z_d = z[:, d]
         delta += (x_d[:, jnp.newaxis] - z_d) ** 2
-    return jnp.sqrt(delta)
+    return delta
 
 
-def esq_kernel(x, z, var, length, noise=0, jitter=1.0e-6):
+def esq_kernel(x,  var, length, jitter=1e-6):
     """For GPs only!!! as it returns a matrix"""
-    dist = euclidian_dist(x, z)
-    deltaXsq = jnp.power(dist / length, 2.0)
+    dist = sq_euclidian_dist(x, x)
+
+    deltaXsq = dist / (length**2)
     k = var * jnp.exp(-0.5 * deltaXsq)
-    k += (noise + jitter) * jnp.eye(x.shape[0])
+    # due to numerical instability, the smallest eigenvalue may sometimes be <0 - 
+    # thus we calculate the smallest eigenvalue, and if negative,
+    # we subtract it from the diagonal. 
+    correction = jnp.minimum(-jnp.linalg.eigh(k)[0][..., 0], 0)
+    jax.debug.print("Kernel eigenvalue correction: {c} * 1e-6", c=correction * 1e6)
+    k += (jitter +correction) * jnp.eye(x.shape[0])
     return k
 
 

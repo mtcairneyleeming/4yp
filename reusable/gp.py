@@ -6,7 +6,7 @@ import numpyro
 import numpyro.distributions as dist
 
 
-def OneDGP(gp_kernel, x, jitter=1e-5, var=None, length=None, y=None, noise=False):
+def OneDGP(gp_kernel, x, jitter=1e-6, var=None, length=None, y=None, noise=False):
     """The original, basic GP, with the length sampled from a fixed prior"""
     if length==None:
         length = numpyro.sample("kernel_length", dist.InverseGamma(4,1))
@@ -14,7 +14,7 @@ def OneDGP(gp_kernel, x, jitter=1e-5, var=None, length=None, y=None, noise=False
     if var==None:
         var = numpyro.sample("kernel_var", dist.LogNormal(0.,0.1))
         
-    k = gp_kernel(x, x, var, length, jitter)
+    k = gp_kernel(x, var, length, jitter)
     
     if noise==False:
         numpyro.sample("y",  dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k), obs=y)
@@ -27,7 +27,7 @@ def OneDGP(gp_kernel, x, jitter=1e-5, var=None, length=None, y=None, noise=False
 
 
 
-def OneDGP_BinaryCond(gp_kernel, x, jitter=1e-5, var=None, length=None, y=None, noise=False, u=None):
+def OneDGP_BinaryCond(gp_kernel, x, jitter=1e-6, var=None, length=None, y=None, noise=False, u=None):
     """A GP, with a binary condition on the lengthscale, built from the standard GP above."""
     if u==None:
         u = numpyro.sample("u", dist.Bernoulli(0.5)).reshape(1) 
@@ -41,7 +41,7 @@ def OneDGP_BinaryCond(gp_kernel, x, jitter=1e-5, var=None, length=None, y=None, 
         var = 1.0
 
         
-    k = gp_kernel(x, x, var, length, jitter)
+    k = gp_kernel(x, var, length, jitter)
     
     if noise==False:
         y = numpyro.sample("y",  dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k), obs=y)
