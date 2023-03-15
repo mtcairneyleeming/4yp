@@ -349,3 +349,32 @@ def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+def plot_mmd_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None, save_path=None):
+    if fig is None:
+        fig = plt.figure()
+
+    ax = fig.add_subplot()
+
+    mat = onp.array(mat)
+    mask = onp.array(mask)
+
+    masked_times = onp.ma.array(mat, mask=mask)
+
+    current_cmap = plt.get_cmap("gist_yarg")
+    current_cmap.set_bad(color="red")
+
+    plotted = ax.matshow(masked_times, cmap=current_cmap)
+
+    ax.xaxis.set_label_position("top")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(onp.arange(0, len(xticks)), xticks, rotation=45, ha='left')
+    ax.set_yticks(onp.arange(0, len(yticks)), yticks)
+
+    fig.colorbar(plotted, ax=ax)
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
