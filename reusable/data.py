@@ -4,7 +4,7 @@ import jax.random as random
 from numpyro.infer import Predictive
 import numpyro
 import numpyro.distributions as dist
-
+import time
 
 def __gen_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access, jitter):
     pred = Predictive(gp_model, num_samples=batch_size)
@@ -18,14 +18,18 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y", 
     num_successes = 0 # total number of non-NaN samples
     draws = None
     key = rng_key
+    start = time.time()
+    prev = start
+    print(f"Starting, need {batch_size}")
     while all_generated <= 5 * batch_size:
-        print(f"Looping, need {batch_size - num_successes}")
+        to_generate = min(500, batch_size - num_successes)
+        
         key, new_key = random.split(key, 2) # otherwise will just generate the same data!
-        new_draws = __gen_batch(x, gp_model, gp_kernel, batch_size - num_successes, new_key, draw_access, jitter)
+        new_draws = __gen_batch(x, gp_model, gp_kernel, to_generate, new_key, draw_access, jitter)
 
         nan_locs= jnp.any(jnp.isnan(new_draws), axis=-1) # so we get 1 
-        all_generated += batch_size - num_successes
-        num_successes += batch_size - num_successes -jnp.count_nonzero(nan_locs)
+        all_generated += to_generate
+        num_successes += to_generate -jnp.count_nonzero(nan_locs)
         
         filtered = new_draws[~nan_locs]
  
@@ -34,8 +38,11 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y", 
         else:
             draws = jnp.concatenate((draws, filtered), axis=0)
 
+        curr = time.time()
+        print(f"Looped: gen {to_generate}/{batch_size - num_successes} , elapsed: {curr-start}, last batch in {curr-prev}")
+        prev = curr
         if num_successes == batch_size:
-            print(f"Used {all_generated}")
+            print(f"Used {all_generated}, total time = {curr - start}")
             return draws
     raise Exception(f"failed to generate enough non-Nans {num_successes}/{batch_size}, attempts: {all_generated}")
 
