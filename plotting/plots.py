@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import jax.numpy as jnp
 import numpy as onp
 from numpyro.diagnostics import hpdi
+import math
 
 
 def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
@@ -286,7 +287,7 @@ def plot_matrix(mat, title, vmin=None, vmax=None, fig=None, save_path=None):
         print("Created fig")
         fig = plt.figure()
 
-    ax = fig.subplots(1, 1) #add_axes([.1, .1, 0.8, 0.8])
+    ax = fig.subplots(1, 1)  # add_axes([.1, .1, 0.8, 0.8])
 
     current_cmap = plt.get_cmap("plasma")
     current_cmap.set_bad(color="red")
@@ -294,7 +295,6 @@ def plot_matrix(mat, title, vmin=None, vmax=None, fig=None, save_path=None):
     plotted = ax.matshow(mat, cmap=current_cmap, vmin=vmin, vmax=vmax, norm="log")
     ax.axis("off")
     ax.set_title(title)
-
 
     fig.colorbar(plotted, ax=ax)
 
@@ -371,10 +371,59 @@ def plot_mmd_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None, 
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_xticks(onp.arange(0, len(xticks)), xticks, rotation=45, ha='left')
+    ax.set_xticks(onp.arange(0, len(xticks)), xticks, rotation=45, ha="left")
     ax.set_yticks(onp.arange(0, len(yticks)), yticks)
 
     fig.colorbar(plotted, ax=ax)
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+def plot_2d_one_draw(draw, title, mask=None, fig=None, save_path=None, vmin=None, vmax=None):
+    if fig is None:
+        fig = plt.figure(figsize=(12, 12))
+        fig.suptitle(title)
+
+    ax = fig.subplots(1)
+
+    current_cmap = plt.get_cmap()
+    current_cmap.set_bad(color="red")
+
+    if mask is not None:
+        mat = onp.array(draw)
+        mask = onp.array(mask)
+
+        plotted = ax.imshow(onp.ma.array(mat, mask=mask), cmap=current_cmap)
+    else:
+        plotted = ax.imshow(draw, cmap=current_cmap)
+
+    ax.axis("off")
+    fig.colorbar(plotted, ax=ax)
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+    return plotted.get_clim()
+
+def plot_2d_draws(draws, num_to_plot, num_per_row, title, fig=None, save_path=None):
+    if fig is None:
+        fig = plt.figure(figsize=(12, 12))
+        fig.suptitle(title)
+
+    axs = fig.subplots(math.ceil(num_to_plot / num_per_row), num_per_row)
+
+    current_cmap = plt.get_cmap()
+    current_cmap.set_bad(color="red")
+
+    vmin = jnp.min(draws[:num_to_plot], None)
+    vmax = jnp.max(draws[:num_to_plot], None)
+
+    for i, ax in enumerate(axs.flat):
+        plotted = ax.imshow(draws[i], cmap=current_cmap, vmin=vmin, vmax=vmax)
+        ax.axis("off")
+
+    fig.colorbar(plotted, ax=axs.ravel().tolist())
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")

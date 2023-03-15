@@ -64,6 +64,9 @@ def save_training(path, final_state, metrics_history):
         dill.dump(metrics_history, file)
     print(f"Saved {path}")
 
+def get_decoder_params(state):
+    return freeze({"params": state.params["VAE_Decoder_0"]})
+
 
 def update_args_once(args, key, value):
     if key in ["n", "train_num_batches", "batch_size", "num_epochs"]:
@@ -90,3 +93,9 @@ def update_args_11(args, exp_details, i, j):
     args["x"] = jnp.arange(0, 1, 1 / args["n"])  # if we have changed it!
 
     return args
+
+
+def save_samples(path, samples):
+    with open(path + "_samples", "wb") as file:
+        dill.dump(samples, file)
+    print(f"Saved {path}")

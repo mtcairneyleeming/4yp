@@ -67,10 +67,10 @@ def OneDGP_UnifLS(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, nois
     length = jnp.array(length).reshape(1) 
     
     if noise==False:
-        y= numpyro.sample("y",  dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k), obs=y)
+        y= numpyro.sample("y",  dist.MultivariateNormal(loc=jnp.zeros(x.shape[:-1]), covariance_matrix=k), obs=y)
     else:
         sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
-        f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k))
+        f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[:-1]), covariance_matrix=k))
         y= numpyro.sample("y", dist.Normal(f, sigma), obs=y)
 
     y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
