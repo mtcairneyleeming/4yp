@@ -38,7 +38,7 @@ echo "Files copied across:"
 tree
 
 
-python ./$FILE_TO_RUN 
+python ./$FILE_TO_RUN $1
 
 
 # note -p, as each job in the array will try and create the output folder

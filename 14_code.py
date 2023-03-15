@@ -8,6 +8,7 @@ test on GP with true ls 0.05
 """
 
 import time
+import sys
 
 import jax.numpy as jnp
 # Numpyro
@@ -70,6 +71,8 @@ args.update(
     }
 )
 
+pre_generated_data = sys.argv[1] == "gen_data"
+
 
 rng_key, _ = random.split(random.PRNGKey(4))
 
@@ -77,27 +80,41 @@ rng_key, _ = random.split(random.PRNGKey(4))
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 # generate a complete set of training and test data
 
-# NOTE changed draw_access - y_c is [y,u] for this
-train_draws = gen_gp_batches(
-    args["x"],
-    OneDGP_UnifLS,
-    args["gp_kernel"],
-    args["train_num_batches"],
-    args["batch_size"],
-    rng_key_train,
-    draw_access="y_c",
-    jitter=5e-5,
-)
-test_draws = gen_gp_batches(
-    args["x"],
-    OneDGP_UnifLS,
-    args["gp_kernel"],
-    1,
-    args["test_num_batches"] * args["batch_size"],
-    rng_key_test,
-    draw_access="y_c",
-    jitter=5e-5,
-)
+path = f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp")}'
+
+if not pre_generated_data:
+
+    # NOTE changed draw_access - y_c is [y,u] for this
+    train_draws = gen_gp_batches(
+        args["x"],
+        OneDGP_UnifLS,
+        args["gp_kernel"],
+        args["train_num_batches"],
+        args["batch_size"],
+        rng_key_train,
+        draw_access="y_c",
+        jitter=5e-5,
+    )
+    test_draws = gen_gp_batches(
+        args["x"],
+        OneDGP_UnifLS,
+        args["gp_kernel"],
+        1,
+        args["test_num_batches"] * args["batch_size"],
+        rng_key_test,
+        draw_access="y_c",
+        jitter=5e-5,
+    )
+    
+    jnp.savez(path, train=train_draws, test=test_draws)
+    save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp_train")}', train_draws)
+    save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp_test")}', test_draws)
+
+else:
+    data = jnp.load(path)
+    train_draws = data["train"]
+    test_draws = data["test"]
+
 
 
 rng_key, rng_key_init, rng_key_train, rng_key_shuffle = random.split(rng_key, 4)
