@@ -57,12 +57,14 @@ def OneDGP_BinaryCond(gp_kernel, x, jitter=1e-6, var=None, length=None, y=None, 
 def OneDGP_UnifLS(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, noise=False):
     """The original, basic GP, with the length sampled from a fixed prior"""
     if length==None:
-        length = numpyro.sample("kernel_length", dist.Uniform(0.01, 0.5)).reshape(1) 
+        length = numpyro.sample("kernel_length", dist.Uniform(0.01, 0.5))
         
     if var==None:
         var = numpyro.sample("kernel_var", dist.LogNormal(0.,0.1))
         
     k = gp_kernel(x, var, length, jitter)
+
+    length = jnp.array(length).reshape(1) 
     
     if noise==False:
         y= numpyro.sample("y",  dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k), obs=y)
