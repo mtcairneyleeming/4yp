@@ -23,7 +23,7 @@ from reusable.kernels import esq_kernel
 from reusable.loss import KLD, RCL, combo_loss, conditional_loss_wrapper
 from reusable.train_nn import SimpleTrainState, run_training_shuffle
 from reusable.util import (decoder_filename, get_savepath, save_samples,
-                           save_training, get_decoder_params)
+                           save_training, get_decoder_params, save_args)
 from reusable.vae import VAE, cvae_length_mcmc, cvae_sample
 
 numpyro.set_host_device_count(4)
@@ -71,7 +71,10 @@ args.update(
     }
 )
 
-pre_generated_data = sys.argv[1] == "gen_data"
+save_args("14", args)
+
+
+pre_generated_data = sys.argv[1] = "load_generated"
 
 
 rng_key, _ = random.split(random.PRNGKey(4))
@@ -107,8 +110,6 @@ if not pre_generated_data:
     )
     
     jnp.savez(path, train=train_draws, test=test_draws)
-    save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp_train")}', train_draws)
-    save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp_test")}', test_draws)
 
 else:
     data = jnp.load(path)
