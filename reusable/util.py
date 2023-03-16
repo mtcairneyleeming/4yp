@@ -23,20 +23,25 @@ def save_args(name, args):
         dill.dump(args, f)
 
 
-def decoder_filename(file_code, args, suffix="_decoder"):
+def decoder_filename(file_code, args, suffix="_decoder", leave_out=[]):
     """Return a file name that reflects the params used to generate the saved weights. If the structure of args changes, this will gracefully fail,
     as it uses a default value if any of the params change."""
 
-    param_names = (
-        "hidden_dim1",
-        "hidden_dim2",
-        "latent_dim",
-        "vae_var",
-        "num_epochs",
-        "learning_rate",
-        "batch_size",
-        "train_num_batches",
-    )
+    param_names = [
+        x
+        for x in [
+            "hidden_dim1",
+            "hidden_dim2",
+            "latent_dim",
+            "vae_var",
+            "num_epochs",
+            "learning_rate",
+            "batch_size",
+            "train_num_batches",
+        ]
+        if x not in leave_out
+    ]
+
     vals = []
     for p in param_names:
         vals.append(str(args.get(p, ".")))
@@ -64,6 +69,7 @@ def save_training(path, final_state, metrics_history):
         dill.dump(metrics_history, file)
     print(f"Saved {path}")
 
+
 def get_decoder_params(state):
     return freeze({"params": state.params["VAE_Decoder_0"]})
 
@@ -88,7 +94,6 @@ def update_args_11(args, exp_details, i, j):
     Bdesc = exp_details["Bdesc"]
     args = update_args_once(args, Adesc, Arange[i])
     args = update_args_once(args, Bdesc, Brange[j])
-
 
     args["x"] = jnp.arange(0, 1, 1 / args["n"])  # if we have changed it!
 
