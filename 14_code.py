@@ -114,7 +114,7 @@ if not pre_generated_data:
     jnp.savez(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp", leave_out=["num_epochs"])}', train=train_draws, test=test_draws)
 
 else:
-    path = f'data/{decoder_filename("14", args, suffix=f"raw_gp", leave_out=["num_epochs"])}'
+    path = f'data/{decoder_filename("14", args, suffix=f"raw_gp.npz", leave_out=["num_epochs"])}'
     data = jnp.load(path)
     train_draws = data["train"]
     test_draws = data["test"]
