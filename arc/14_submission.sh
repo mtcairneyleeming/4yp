@@ -4,7 +4,7 @@
 #SBATCH --job-name=4yp_14
 #SBATCH --time=12:00:00
 #SBATCH --partition=short
-#SBATCH --output ./arc/reports/%A-%a.out # STDOUT
+#SBATCH --output ./arc/reports/%j.out # STDOUT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
 #SBATCH --mem=256G
@@ -42,7 +42,7 @@ python ./$FILE_TO_RUN $1
 
 
 # note -p, as each job in the array will try and create the output folder
-mkdir -p $WORKING_DIR/arc/outputs/$SLURM_ARRAY_JOB_ID
+mkdir -p $WORKING_DIR/arc/outputs/$SLURM_JOB_ID
 echo "Outputs created: "
 tree ./output
-rsync -av ./output/* $WORKING_DIR/arc/outputs/$SLURM_ARRAY_JOB_ID
+rsync -av ./output/* $WORKING_DIR/arc/outputs/$SLURM_JOB_ID
