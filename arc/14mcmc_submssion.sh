@@ -1,7 +1,7 @@
 #! /bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
-#SBATCH --job-name=4yp_14
+#SBATCH --job-name=4yp_14mcmc
 #SBATCH --time=12:00:00
 #SBATCH --partition=short
 #SBATCH --output ./arc/reports/%j.out # STDOUT
@@ -12,7 +12,7 @@
 
 export WORKING_DIR=/data/coml-hawkes/lady6235/4yp
 export CONDA_PREFIX=/data/coml-hawkes/lady6235/jax_numpyro_env
-export JOB_PREFIX=14
+export JOB_PREFIX=14_mcmc
 export FILE_TO_RUN=${JOB_PREFIX}_code.py
 
 module load Mamba # note we are not using Mamba to build the environment, we just need to load into it
@@ -25,13 +25,11 @@ source activate $CONDA_PREFIX
 # change to the temporary $SCRATCH directory, where we can create whatever files we want
 cd $SCRATCH
 mkdir output # create an output folder, which we will copy across to $DATA when done
-mkdir data
 
 # copy across only what we need:
 cp -R $WORKING_DIR/reusable   	. # the code we've actually written
 cp -R $WORKING_DIR/plotting   	. # the code we've actually written
 cp -R $WORKING_DIR/$FILE_TO_RUN . # the code we've actually written
-cp -R $WORKING_DIR/data/${JOB_PREFIX}_* ./data
 
 echo "Environment variables:"
 printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus etc.)
