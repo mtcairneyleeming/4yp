@@ -37,7 +37,7 @@ printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus 
 echo "Files copied across:"
 tree
 
-
+echo $1
 python ./$FILE_TO_RUN $1
 
 
