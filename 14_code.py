@@ -57,17 +57,19 @@ args.update(
         "latent_dim": 50,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 200,
+        "num_epochs": 1000,
         "learning_rate": 1.0e-3,
         "batch_size": 400,
         "train_num_batches": 400,
         "test_num_batches": 5,
         # MCMC parameters
-        "num_warmup": 1000,
-        "num_samples": 1000,
+        "num_warmup": 4000,
+        "num_samples": 4000,
         "thinning": 1,
         "num_chains": 3,
-        "num_samples_to_save": 2000
+        "num_samples_to_save": 4000,
+
+        "rng_key_ground_truth": random.PRNGKey(4) 
     }
 )
 
@@ -83,7 +85,7 @@ rng_key, _ = random.split(random.PRNGKey(4))
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 # generate a complete set of training and test data
 
-path = f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp")}'
+
 
 if not pre_generated_data:
 
@@ -109,16 +111,17 @@ if not pre_generated_data:
         jitter=5e-5,
     )
     
-    jnp.savez(path, train=train_draws, test=test_draws)
+    jnp.savez(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp", leave_out=["num_epochs"])}', train=train_draws, test=test_draws)
 
 else:
+    path = f'data/{decoder_filename("14", args, suffix=f"raw_gp", leave_out=["num_epochs"])}'
     data = jnp.load(path)
     train_draws = data["train"]
     test_draws = data["test"]
 
 
 
-rng_key, rng_key_init, rng_key_train, rng_key_shuffle = random.split(rng_key, 4)
+rng_key, rng_key_init, rng_key_init_state, rng_key_train, rng_key_shuffle = random.split(rng_key, 5)
 
 module = VAE(
     hidden_dim1=args["hidden_dim1"],
@@ -127,11 +130,11 @@ module = VAE(
     out_dim=args["n"] ** args["dim"],
     conditional=True,
 )
-params = module.init(rng_key, jnp.ones((args["batch_size"], args["n"] ** args["dim"] + 1,)))[
+params = module.init(rng_key_init, jnp.ones((args["batch_size"], args["n"] ** args["dim"] + 1,)))[
     "params"
 ]  # initialize parameters by passing a template image
 tx = optax.adam(args["learning_rate"])
-state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
+state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init_state)
 
 
 state, metrics_history = run_training_shuffle(
@@ -140,32 +143,6 @@ state, metrics_history = run_training_shuffle(
 
 
 save_training(f'{get_savepath()}/{decoder_filename("14", args)}', state, metrics_history)
-
-args["decoder_params"] = get_decoder_params(state)
-
-rng_key, rng_key_predict = random.split(random.PRNGKey(2))
-
-conditions = [
-    (None, "full"),
-    (0.05, "true"),
-]
-for cond, label in conditions:
-
-    plot_vae_predictive = Predictive(cvae_sample, num_samples=args["num_samples_to_save"])
-    vae_draws = plot_vae_predictive(
-        rng_key_predict,
-        hidden_dim1=args["hidden_dim1"],
-        hidden_dim2=args["hidden_dim2"],
-        latent_dim=args["latent_dim"],
-        out_dim=args["n"] ** args["dim"],
-        decoder_params=args["decoder_params"],
-        condition=cond,
-    )["f"]
-    
-
-    save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_vae_{label}")}', vae_draws)
-
-
 
 def run_mcmc_cvae(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
     start = time.time()
@@ -199,11 +176,11 @@ def run_mcmc_cvae(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
     return mcmc.get_samples()
 
 
-rng_key_ground_truth = random.PRNGKey(4)  # fixed to generate a "ground truth" GP we will try and infer
+ # fixed to generate a "ground truth" GP we will try and infer
 
 ground_truth_predictive = Predictive(OneDGP_UnifLS, num_samples=1)
 gt_draws = ground_truth_predictive(
-    rng_key_ground_truth, x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5, noise=True, length=0.05
+    args["rng_key_ground_truth"], x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5, noise=True, length=0.05
 )
 ground_truth = gt_draws["f"][0]
 ground_truth_y_draw = gt_draws["y"][0]
@@ -515,53 +492,16 @@ obs_idx = jnp.array(
 
 
 obs_mask = jnp.isin(jnp.arange(0, args["n"] ** args["dim"]), obs_idx, assume_unique=True)
-print(obs_mask.sum())
+
 
 ground_truth_y_obs = ground_truth_y_draw[obs_idx]
 x_obs = jnp.arange(0, args["n"] ** args["dim"])[obs_idx]
 
 
-rng_key, rng_key_prior, rng_key_post, rng_key_pred = random.split(rng_key, 4)
+rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
 
-mcmc_samples = run_mcmc_cvae(rng_key_post, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=1)
-
-
+mcmc_samples = run_mcmc_cvae(rng_key_true_mcmc, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=1)
 save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_true_ls_mcmc")}', mcmc_samples)
 
-predictive = Predictive(cvae_length_mcmc, mcmc_samples)
-
-predictions = predictive(
-    rng_key_pred,
-    hidden_dim1=args["hidden_dim1"],
-    hidden_dim2=args["hidden_dim2"],
-    latent_dim=args["latent_dim"],
-    out_dim=args["n"] ** args["dim"],
-    decoder_params=args["decoder_params"],
-    length=0.05,
-)
-
-
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_true_ls_preds")}', predictions)
-
-rng_key, rng_key_prior, rng_key_post, rng_key_pred = random.split(rng_key, 4)
-
-mcmc_samples = run_mcmc_cvae(rng_key_post, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=None)
-
+mcmc_samples = run_mcmc_cvae(rng_key_all_mcmc, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=None)
 save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_all_ls_mcmc")}', mcmc_samples)
-
-predictive = Predictive(cvae_length_mcmc, mcmc_samples)
-
-predictions = predictive(
-    rng_key_pred,
-    hidden_dim1=args["hidden_dim1"],
-    hidden_dim2=args["hidden_dim2"],
-    latent_dim=args["latent_dim"],
-    out_dim=args["n"] ** args["dim"],
-    decoder_params=args["decoder_params"],
-    length=None,
-)
-
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_no_ls_preds")}', predictions)
-
-
-
