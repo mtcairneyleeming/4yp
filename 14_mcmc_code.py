@@ -8,23 +8,19 @@ test on GP with true ls 0.05
 """
 
 import time
-import sys
 
 import jax.numpy as jnp
 # Numpyro
 import numpyro
-import optax
 from jax import random
 from numpyro.infer import MCMC, NUTS, Predictive, init_to_median
 
-from reusable.data import gen_gp_batches
 from reusable.gp import OneDGP_UnifLS
 from reusable.kernels import esq_kernel
-from reusable.loss import KLD, RCL, combo_loss, conditional_loss_wrapper
-from reusable.train_nn import SimpleTrainState, run_training_shuffle
+
 from reusable.util import (decoder_filename, get_savepath, save_samples,
-                           save_training, get_decoder_params, save_args)
-from reusable.vae import VAE, cvae_length_mcmc, cvae_sample
+                            save_args)
+from reusable.mcmc import gp_length_mcmc
 
 numpyro.set_host_device_count(4)
 
@@ -51,22 +47,12 @@ args.update(
     {  # so we can use the definition of n to define x
         "x": jnp.reshape(args["grid_x"], (-1, args["dim"])),
         "conditional": True,
-        # VAE configuration
-        "hidden_dim1": 35,
-        "hidden_dim2": 32,
-        "latent_dim": 50,
-        "vae_var": 0.1,
-        # learning
-        "num_epochs": 1000,
-        "learning_rate": 1.0e-3,
-        "batch_size": 400,
-        "train_num_batches": 400,
-        "test_num_batches": 5,
-        # MCMC parameters
+       
+        # full MCMC parameters
         "num_warmup": 4000,
         "num_samples": 4000,
         "thinning": 1,
-        "num_chains": 3,
+        "num_chains": 4,
         "num_samples_to_save": 4000,
 
         "rng_key_ground_truth": random.PRNGKey(4) 
@@ -76,8 +62,6 @@ args.update(
 save_args("14", args)
 
 
-pre_generated_data = sys.argv[1] = "load_generated"
-
 
 rng_key, _ = random.split(random.PRNGKey(4))
 
@@ -86,67 +70,7 @@ rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 # generate a complete set of training and test data
 
 
-
-if not pre_generated_data:
-
-    # NOTE changed draw_access - y_c is [y,u] for this
-    train_draws = gen_gp_batches(
-        args["x"],
-        OneDGP_UnifLS,
-        args["gp_kernel"],
-        args["train_num_batches"],
-        args["batch_size"],
-        rng_key_train,
-        draw_access="y_c",
-        jitter=5e-5,
-    )
-    test_draws = gen_gp_batches(
-        args["x"],
-        OneDGP_UnifLS,
-        args["gp_kernel"],
-        1,
-        args["test_num_batches"] * args["batch_size"],
-        rng_key_test,
-        draw_access="y_c",
-        jitter=5e-5,
-    )
-    
-    jnp.savez(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp", leave_out=["num_epochs"])}', train=train_draws, test=test_draws)
-
-else:
-    path = f'data/{decoder_filename("14", args, suffix=f"raw_gp", leave_out=["num_epochs"])}'
-    data = jnp.load(path)
-    train_draws = data["train"]
-    test_draws = data["test"]
-
-
-
-rng_key, rng_key_init, rng_key_init_state, rng_key_train, rng_key_shuffle = random.split(rng_key, 5)
-
-module = VAE(
-    hidden_dim1=args["hidden_dim1"],
-    hidden_dim2=args["hidden_dim2"],
-    latent_dim=args["latent_dim"],
-    out_dim=args["n"] ** args["dim"],
-    conditional=True,
-)
-params = module.init(rng_key_init, jnp.ones((args["batch_size"], args["n"] ** args["dim"] + 1,)))[
-    "params"
-]  # initialize parameters by passing a template image
-tx = optax.adam(args["learning_rate"])
-state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init_state)
-
-
-state, metrics_history = run_training_shuffle(
-    conditional_loss_wrapper(combo_loss(RCL, KLD)), lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
-)
-
-args["decoder_params"] = get_decoder_params(state)
-
-
-save_training(f'{get_savepath()}/{decoder_filename("14", args)}', state, metrics_history)
-
-def run_mcmc_cvae(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
+def run_mcmc_gp(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
     start = time.time()
 
     init_strategy = init_to_median(num_samples=10)
@@ -157,18 +81,17 @@ def run_mcmc_cvae(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
         num_samples=args["num_samples"],
         num_chains=args["num_chains"],
         thinning=args["thinning"],
-        progress_bar=False
+        progress_bar=True,
+        jit_model_args=True
     )
     mcmc.run(
         rng_key,
-        args["hidden_dim1"],
-        args["hidden_dim2"],
-        args["latent_dim"],
-        args["n"] ** args["dim"],
-        args["decoder_params"],
+        #args["x"],
+        #args["gp_kernel"],
         y=y_obs,
-        obs_idx=obs_idx,
+        #obs_idx=obs_idx,
         length=c,
+        #jitter=5e-5
     )
     if verbose:
         mcmc.print_summary(exclude_deterministic=False)
@@ -502,8 +425,8 @@ x_obs = jnp.arange(0, args["n"] ** args["dim"])[obs_idx]
 
 rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
 
-mcmc_samples = run_mcmc_cvae(rng_key_true_mcmc, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=1)
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_true_ls_mcmc")}', mcmc_samples)
+mcmc_samples = run_mcmc_gp(rng_key_true_mcmc, gp_length_mcmc(args["x"], args["gp_kernel"], obs_idx), ground_truth_y_obs, obs_idx, c=1, verbose=True)
+save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"gp_inference_true_ls_mcmc")}', mcmc_samples)
 
-mcmc_samples = run_mcmc_cvae(rng_key_all_mcmc, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=None)
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_all_ls_mcmc")}', mcmc_samples)
+mcmc_samples = run_mcmc_gp(rng_key_all_mcmc, gp_length_mcmc(args["x"], args["gp_kernel"], obs_idx), ground_truth_y_obs, obs_idx, c=None, verbose=True)
+save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"gp_inference_all_ls_mcmc")}', mcmc_samples)
