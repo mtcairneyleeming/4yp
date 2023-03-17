@@ -41,31 +41,46 @@ def cvae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, y=N
 
 
 
-def cvae_length_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, y=None, obs_idx=None, length=None):
-    z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
-    if length is None:
-        length = numpyro.sample("c", dist.Uniform(0.01, 0.5)).reshape(1) 
-    else:
-        length = numpyro.deterministic("c", jnp.array([length]))
+def cvae_length_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params,  obs_idx=None, length_prior_choice = "uniform"):
 
-    z_c = numpyro.deterministic("z_c", jnp.concatenate([z, length], axis=0))
+    if length_prior_choice == "uniform":
+        prior = dist.Uniform(0.01, 0.5)
+    elif length_prior_choice == "invgamma":
+        prior = dist.InverseGamma(4,1)
 
-    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
+    def func(y=None,  length=None, var=None,):
+        z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
+        if length is None:
+            length = numpyro.sample("c", prior).reshape(1) 
+        else:
+            length = numpyro.deterministic("c", jnp.array([length]))
 
-    f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z_c))
-    sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+        z_c = numpyro.deterministic("z_c", jnp.concatenate([z, length], axis=0))
 
-    if y is None: # durinig prediction
-        numpyro.sample("y_pred", dist.Normal(f, sigma))
-    else: # during inference
-        numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
+        decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)  
+
+        f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z_c))
+        sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+
+        if y is None: # durinig prediction
+            numpyro.sample("y_pred", dist.Normal(f, sigma))
+        else: # during inference
+            numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
+    return func
 
 
-def gp_length_mcmc(all_x, gp_kernel,obs_idx=None, jitter=1e-5):
+
+def gp_length_mcmc(all_x, gp_kernel,obs_idx=None, jitter=1e-5, length_prior_choice = "uniform"):
+
+    if length_prior_choice == "uniform":
+        prior = dist.Uniform(0.01, 0.5)
+    elif length_prior_choice == "invgamma":
+        prior = dist.InverseGamma(4,1)
+
     def func(y=None,  length=None, var=None,):
 
         if length==None:
-            length = numpyro.sample("kernel_length", dist.Uniform(0.01, 0.5))
+            length = numpyro.sample("kernel_length", prior)
             
         if var==None:
             var = numpyro.sample("kernel_var", dist.LogNormal(0.,0.1))

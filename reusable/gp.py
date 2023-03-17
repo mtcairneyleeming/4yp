@@ -15,6 +15,8 @@ def OneDGP(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, noise=False
         var = numpyro.sample("kernel_var", dist.LogNormal(0.,0.1))
         
     k = gp_kernel(x, var, length, jitter)
+
+    length = jnp.array(length).reshape(1) 
     
     if noise==False:
         numpyro.sample("y",  dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k), obs=y)
@@ -22,6 +24,8 @@ def OneDGP(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, noise=False
         sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
         f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k))
         numpyro.sample("y", dist.Normal(f, sigma), obs=y)
+
+    y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
 
     return y
 
