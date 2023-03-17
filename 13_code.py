@@ -113,4 +113,4 @@ final_state, metrics_history = run_training(
     loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
 )
 
-save_training("13", gen_file_name("13", args, f"{loss_fn.__name__}_{index}")), final_state, metrics_history)
+save_training("13", gen_file_name("13", args, f"{loss_fn.__name__}_{index}"), final_state, metrics_history)
