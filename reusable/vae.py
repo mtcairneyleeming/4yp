@@ -119,7 +119,7 @@ def vae_model(batch, hidden_dim1, hidden_dim2, latent_dim, vae_var):
 
     decoder = flax_module(
             "decoder",
-            VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim, conditional=False),
+            VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim),
             input_shape=(batch_dim, latent_dim)
         )
 
@@ -139,7 +139,7 @@ def vae_guide(batch, hidden_dim1, hidden_dim2, latent_dim, vae_var):
 
     encoder = flax_module(
         "encoder",
-        VAE_Encoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, latent_dim= latent_dim, conditional=False),
+        VAE_Encoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, latent_dim= latent_dim),
         input_shape=(batch_dim, out_dim),
     )
     z_loc, z_std = encoder(batch)
