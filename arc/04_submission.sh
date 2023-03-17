@@ -20,14 +20,10 @@
 
 export WORKING_DIR=/data/coml-hawkes/lady6235/4yp
 export CONDA_PREFIX=/data/coml-hawkes/lady6235/jax_numpyro_env
-export FILE_TO_RUN=04_code.py
-
+export JOB_PREFIX=04
+export FILE_TO_RUN=${JOB_PREFIX}_code.py
 
 module load Mamba # note we are not using Mamba to build the environment, we just need to load into it
-module load CUDA/11.6.0
-
-echo "CUDA Devices(s) allocated: $CUDA_VISIBLE_DEVICES"
-nvidia-smi
 
 
 # set the Anaconda environment, and activate it:
@@ -36,7 +32,7 @@ source activate $CONDA_PREFIX
 
 # change to the temporary $SCRATCH directory, where we can create whatever files we want
 cd $SCRATCH
-mkdir output # create an output folder, which we will copy across to $DATA when done
+mkdir -p output/$JOB_PREFIX # create an output folder, which we will copy across to $DATA when done
 
 # copy across only what we need:
 cp -R $WORKING_DIR/reusable   	. # the code we've actually written

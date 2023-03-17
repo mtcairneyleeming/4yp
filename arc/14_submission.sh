@@ -24,7 +24,7 @@ source activate $CONDA_PREFIX
 
 # change to the temporary $SCRATCH directory, where we can create whatever files we want
 cd $SCRATCH
-mkdir output # create an output folder, which we will copy across to $DATA when done
+mkdir -p output/$JOB_PREFIX # create an output folder, which we will copy across to $DATA when done
 mkdir data
 
 # copy across only what we need:
