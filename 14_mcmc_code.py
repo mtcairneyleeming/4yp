@@ -10,6 +10,7 @@ test on GP with true ls 0.05
 import time
 
 import jax.numpy as jnp
+
 # Numpyro
 import numpyro
 from jax import random
@@ -18,8 +19,7 @@ from numpyro.infer import MCMC, NUTS, Predictive, init_to_median
 from reusable.gp import OneDGP_UnifLS
 from reusable.kernels import esq_kernel
 
-from reusable.util import (decoder_filename, get_savepath, save_samples,
-                            save_args)
+from reusable.util import save_samples, gen_file_name, save_args
 from reusable.mcmc import gp_length_mcmc
 
 numpyro.set_host_device_count(4)
@@ -47,30 +47,24 @@ args.update(
     {  # so we can use the definition of n to define x
         "x": jnp.reshape(args["grid_x"], (-1, args["dim"])),
         "conditional": True,
-       
         # full MCMC parameters
         "num_warmup": 4000,
         "num_samples": 4000,
         "thinning": 1,
         "num_chains": 4,
         "num_samples_to_save": 4000,
-
-        "rng_key_ground_truth": random.PRNGKey(4) 
+        "rng_key_ground_truth": random.PRNGKey(4),
     }
 )
 
-save_args("14", args)
+save_args("14", "14mcmc", args)
 
 
-
-rng_key, _ = random.split(random.PRNGKey(4))
-
-
+rng_key = random.PRNGKey(4)
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
-# generate a complete set of training and test data
 
 
-def run_mcmc_gp(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
+def run_mcmc_gp(rng_key, model_mcmc, y_obs, c=None, verbose=False):
     start = time.time()
 
     init_strategy = init_to_median(num_samples=10)
@@ -82,16 +76,12 @@ def run_mcmc_gp(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
         num_chains=args["num_chains"],
         thinning=args["thinning"],
         progress_bar=True,
-        jit_model_args=True
+        jit_model_args=True,
     )
     mcmc.run(
         rng_key,
-        #args["x"],
-        #args["gp_kernel"],
         y=y_obs,
-        #obs_idx=obs_idx,
         length=c,
-        #jitter=5e-5
     )
     if verbose:
         mcmc.print_summary(exclude_deterministic=False)
@@ -101,7 +91,7 @@ def run_mcmc_gp(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
     return mcmc.get_samples()
 
 
- # fixed to generate a "ground truth" GP we will try and infer
+# fixed to generate a "ground truth" GP we will try and infer
 
 ground_truth_predictive = Predictive(OneDGP_UnifLS, num_samples=1)
 gt_draws = ground_truth_predictive(
@@ -425,8 +415,11 @@ x_obs = jnp.arange(0, args["n"] ** args["dim"])[obs_idx]
 
 rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
 
-mcmc_samples = run_mcmc_gp(rng_key_true_mcmc, gp_length_mcmc(args["x"], args["gp_kernel"], obs_idx), ground_truth_y_obs, obs_idx, c=1, verbose=True)
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"gp_inference_true_ls_mcmc")}', mcmc_samples)
-
-mcmc_samples = run_mcmc_gp(rng_key_all_mcmc, gp_length_mcmc(args["x"], args["gp_kernel"], obs_idx), ground_truth_y_obs, obs_idx, c=None, verbose=True)
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"gp_inference_all_ls_mcmc")}', mcmc_samples)
+mcmc_samples = run_mcmc_gp(
+    rng_key_true_mcmc, gp_length_mcmc(args["x"], args["gp_kernel"], obs_idx), ground_truth_y_obs, c=1, verbose=True
+)
+save_samples("14", gen_file_name("14mcmc", args, "gp_inference_true_ls_mcmc"), mcmc_samples)
+mcmc_samples = run_mcmc_gp(
+    rng_key_all_mcmc, gp_length_mcmc(args["x"], args["gp_kernel"], obs_idx), ground_truth_y_obs, c=None, verbose=True
+)
+save_samples("14", gen_file_name("14mcmc", args, "gp_inference_all_ls_mcmc"), mcmc_samples)

@@ -19,7 +19,7 @@ from reusable.gp import OneDGP
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
 from reusable.train_nn import SimpleTrainState, run_training
-from reusable.util import decoder_filename, get_savepath, save_args, save_training, setup_signals, update_args_11
+from reusable.util import save_args, save_training, setup_signals, update_args_11, gen_file_name
 from reusable.vae import VAE
 
 setup_signals()
@@ -56,7 +56,7 @@ args.update(
     }
 )
 
-save_args("13", args)
+save_args("13", "13", args)
 
 print("Saved args", flush=True)
 
@@ -108,12 +108,9 @@ state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key
 print("Starting training", flush=True)
 
 
-name = f"{loss_fn.__name__}_13_{index}"
-
-print(name, flush=True)
 
 final_state, metrics_history = run_training(
     loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
 )
 
-save_training(f'{get_savepath()}/{decoder_filename("13", args, suffix=name)}', final_state, metrics_history)
+save_training("13", gen_file_name("13", args, f"{loss_fn.__name__}_{index}")), final_state, metrics_history)

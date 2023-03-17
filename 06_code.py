@@ -67,7 +67,7 @@ test_draws = gen_gp_batches(
 
 print("Generated data", flush=True)
 
-# %%
+
 from reusable.vae import VAE
 from reusable.train_nn import SimpleTrainState
 import optax
@@ -137,7 +137,7 @@ from reusable.vae import vae_sample
 import jax.random as random
 from numpyro.infer import Predictive
 from reusable.gp import OneDGP
-from reusable.util import decoder_filename, get_savepath
+from reusable.util import decoder_filename, __get_savepath
 
 
 _, rng_key_predict = random.split(random.PRNGKey(2))
@@ -175,17 +175,8 @@ final_state, metrics_history = run_training(
     loss_fn, compute_epoch_metrics, args["num_epochs"], train_draws, test_draws, state
 )
 
-with open(f'{get_savepath()}/{decoder_filename("06", args, suffix=loss_fn.__name__)}', "wb") as file:
-    file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
+from reusable.util import gen_file_name, save_training, save_args
 
-with open(
-    f'{get_savepath()}/{decoder_filename("06", args, suffix=loss_fn.__name__+"_metrics_hist")}', "wb"
-) as file:
-    dill.dump(metrics_history, file)
+save_training("06", gen_file_name("06", args, loss_fn.__name__))
 
-
-from reusable.util import save_args
-
-save_args("06", args)
-
-print("Saved args", flush=True)
+save_args(f"06", "06", args)

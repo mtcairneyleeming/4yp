@@ -22,7 +22,7 @@ from reusable.gp import OneDGP
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD, MMD_rqk
 from reusable.train_nn import SimpleTrainState, run_training, run_training_shuffle
-from reusable.util import decoder_filename, get_savepath, save_args, save_training, setup_signals, update_args_11
+from reusable.util import save_args, save_training, setup_signals, gen_file_name
 from reusable.vae import VAE
 
 setup_signals()
@@ -62,7 +62,7 @@ loss_fns = [combo_loss(RCL, KLD),
 
 args["loss_fns"] = [l.__name__ for l in loss_fns]
 
-save_args("12", args)
+save_args("12", "12", args)
 
 print("Saved args", flush=True)
 
@@ -107,8 +107,7 @@ final_state, metrics_history = run_training(
     loss_fns[index], lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
 )
 
-save_training(f'{get_savepath()}/{decoder_filename("12", args, suffix=name+"_standard")}', final_state, metrics_history)
-
+save_training("12", gen_file_name("12", args, "standard"), final_state, metrics_history)
 #### shuffled
 
 
@@ -130,5 +129,4 @@ final_state, metrics_history = run_training_shuffle(
     loss_fns[index], lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
 )
 
-save_training(f'{get_savepath()}/{decoder_filename("12", args, suffix=name+"_shuffle")}', final_state, metrics_history)
-
+save_training("12", gen_file_name("12", args, "shuffle"), final_state, metrics_history)

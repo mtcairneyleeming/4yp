@@ -139,7 +139,7 @@ from reusable.vae import vae_sample
 import jax.random as random
 from numpyro.infer import Predictive
 from reusable.gp import OneDGP
-from reusable.util import decoder_filename, get_savepath
+from reusable.util import gen_file_name, save_training, save_args
 
 
 _, rng_key_predict = random.split(random.PRNGKey(2))
@@ -175,17 +175,6 @@ final_state, metrics_history = run_training(
     loss_fn, compute_epoch_metrics, args["num_epochs"], train_draws, test_draws, state
 )
 
-with open(f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__)}', "wb") as file:
-    file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
+save_training("04", gen_file_name("04", args, loss_fn.__name__), final_state, metrics_history)
 
-with open(
-    f'{get_savepath()}/{decoder_filename("04", args, suffix=loss_fn.__name__+"_metrics_hist")}', "wb"
-) as file:
-    dill.dump(metrics_history, file)
-
-
-from reusable.util import save_args
-
-save_args("04", args)
-
-print("Saved args", flush=True)
+save_args("04", "args", args)

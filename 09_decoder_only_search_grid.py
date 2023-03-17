@@ -91,7 +91,7 @@ from reusable.train_nn import run_training
 
 
 import jax.random as random
-from reusable.util import decoder_filename, get_savepath
+from reusable.util import decoder_filename, __get_savepath
 
 
 from reusable.loss import MMD_rqk
@@ -126,18 +126,9 @@ final_state, metrics_history = run_training(
     loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
 )
 
-with open(f'{get_savepath()}/{decoder_filename("09", args, suffix=loss_fn.__name__)}', "wb") as file:
-    file.write(serialization.to_bytes(freeze({"params": final_state.params})))
+from reusable.util import gen_file_name, save_training, save_args
 
-with open(
-    f'{get_savepath()}/{decoder_filename("09", args, suffix=loss_fn.__name__+"_metrics_hist")}', "wb"
-) as file:
-    dill.dump(metrics_history, file)
+save_training("09", gen_file_name("09", args, loss_fn.__name__))
 
+save_args(f"09", "09", args)
 
-from reusable.util import save_args
-
-# might need to depend on job in the future!
-save_args(f"09", args)
-
-print("Saved args", flush=True)

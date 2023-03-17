@@ -38,7 +38,7 @@ from reusable.gp import OneDGP
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
 from reusable.train_nn import SimpleTrainState, run_training
-from reusable.util import decoder_filename, get_savepath, save_args, save_training, setup_signals, update_args_11
+from reusable.util import save_args, save_training, setup_signals, update_args_11, gen_file_name
 from reusable.vae import VAE
 
 setup_signals()
@@ -107,7 +107,7 @@ args.update(
     }
 )
 
-save_args(experiment, args)
+save_args("11", experiment, args)
 
 print("Saved args", flush=True)
 
@@ -180,7 +180,7 @@ for loss_fn in loss_fns:
             loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
         )
 
-        save_training(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', final_state, metrics_history)
+        save_training(f'{__get_savepath()}/{decoder_filename("11", args, suffix=name)}', final_state, metrics_history)
 
     else:
         prev_history = {}
@@ -211,7 +211,9 @@ for loss_fn in loss_fns:
 
             args = update_args_11(args, args[experiment], a, b)  # set num_epochs correctly now!
 
-            save_training(f'{get_savepath()}/{decoder_filename("11", args, suffix=name)}', state, prev_history)
+
+
+            save_training("11", gen_file_name(experiment, args, f"{loss_fn.__name__}_{new_index}"), state, prev_history)
 
             if "interrupted" in h:
                 print("SIGTERM sent, not iterating")

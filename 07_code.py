@@ -157,7 +157,7 @@ from numpyro.infer import Predictive
 
 from reusable.gp import OneDGP
 from reusable.train_nn import run_training, run_training_datastream
-from reusable.util import decoder_filename, get_savepath
+from reusable.util import decoder_filename, __get_savepath
 from reusable.vae import vae_sample
 
 print("Starting training", flush=True)
@@ -184,21 +184,8 @@ else:
 
 inf_path = "_inf" if infinite else ""
 
-with open(
-    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+ inf_path)}', "wb"
-) as file:
-    file.write(serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
+from reusable.util import gen_file_name, save_training, save_args
 
-with open(
-    f'{get_savepath()}/{decoder_filename("07", args, suffix=loss_fn.__name__+"_metrics_hist"+ inf_path)}',
-    "wb",
-) as file:
-    dill.dump(metrics_history, file)
+save_training("07", gen_file_name("07", args, loss_fn.__name__+ inf_path))
 
-jax.profiler.save_device_memory_profile(f'{get_savepath()}/{decoder_filename("07", args, suffix=f"{index}.prof")}')
-
-from reusable.util import save_args
-
-save_args("07", args)
-
-print("Saved args", flush=True)
+save_args(f"07", "07", args)

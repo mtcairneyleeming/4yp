@@ -6,7 +6,7 @@ from flax.core.frozen_dict import freeze
 import jax.numpy as jnp
 
 
-def get_savepath():
+def __get_savepath():
     # work out where to save outputs:
     if os.path.isdir("output"):  # running in an ARC job (using my submission script)
         save_path = "output"
@@ -17,19 +17,83 @@ def get_savepath():
     return save_path
 
 
-def save_args(name, args):
-
-    with open(f"{get_savepath()}/{name}_args.dill", "wb+") as f:
+def save_args(exp_code, file_name, args, args_file_ext=".args"):
+    path = __get_savepath() + f"/{exp_code}/{exp_code}_{file_name}{args_file_ext}"
+    with open(path, "wb+") as f:
         dill.dump(args, f)
+    print(f"Saved args to {path}")
 
 
-def decoder_filename(file_code, args, suffix="_decoder", leave_out=[]):
+def load_args(exp_code, file_name, args_file_ext=".args"):
+    path = __get_savepath() + f"/{exp_code}/{exp_code}_{file_name}{args_file_ext}"
+    with open(path, "rb+") as f:
+        return dill.load(f)
+
+
+def save_training(exp_code, file_name, final_state, metrics_history, state_file_ext=".state", hist_file_ext=".hist"):
+    base_path = __get_savepath() + f"/{exp_code}/{file_name}"
+    if final_state is not None:
+        with open(base_path + state_file_ext, "wb") as file:
+            file.write(serialization.to_bytes(final_state))
+
+    with open(base_path + hist_file_ext, "wb") as file:
+        dill.dump(metrics_history, file)
+    print(f"Saved {base_path+state_file_ext} and {base_path+hist_file_ext}")
+
+
+def load_training_state(exp_code, file_name, dummy_state, state_file_ext=".state"):
+    base_path = __get_savepath() + f"/{exp_code}/{file_name}"
+
+    with open(base_path + state_file_ext, "rb") as file:
+        bytes = file.read()
+        return serialization.from_bytes(dummy_state, bytes)
+
+
+def get_decoder_params(state):
+    return freeze({"params": state.params["VAE_Decoder_0"]})
+
+
+def load_training_history(exp_code, file_name, hist_file_ext=".hist"):
+    base_path = __get_savepath() + f"/{exp_code}/{file_name}"
+
+    with open(base_path + hist_file_ext, "rb") as file:
+        return dill.load(file)
+
+
+def save_samples(exp_code, file_name, samples, samples_file_ext=".samples"):
+    base_path = __get_savepath() + f"/{exp_code}/{file_name}"
+    with open(base_path + samples_file_ext, "wb") as file:
+        dill.dump(samples, file)
+    print(f"Saved {base_path+samples_file_ext}")
+
+
+def load_samples(exp_code, file_name, samples_file_ext=".samples"):
+    base_path = __get_savepath() + f"/{exp_code}/{file_name}"
+    with open(base_path + samples_file_ext, "rb") as file:
+        return dill.load(file)
+
+
+def save_datasets(exp_code, file_name, train_data, test_data, data_file_ext=".data"):
+    path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
+    jnp.savez(path, train=train_data, test=test_data)
+
+
+def load_datasets(exp_code, file_name, data_file_ext=".data"):
+    path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
+    data = jnp.load(path)
+    train_draws = data["train"]
+    test_draws = data["test"]
+    return train_draws, test_draws
+
+
+def gen_file_name(exp_prefix, naming_args, desc_suffix="", include_mcmc=False, args_leave_out=[]):
     """Return a file name that reflects the params used to generate the saved weights. If the structure of args changes, this will gracefully fail,
     as it uses a default value if any of the params change."""
 
     param_names = [
         x
         for x in [
+            "n",
             "hidden_dim1",
             "hidden_dim2",
             "latent_dim",
@@ -39,14 +103,27 @@ def decoder_filename(file_code, args, suffix="_decoder", leave_out=[]):
             "batch_size",
             "train_num_batches",
         ]
-        if x not in leave_out
+        if x not in args_leave_out
     ]
+    if include_mcmc:
+        param_names = param_names + [
+            x
+            for x in [
+                "num_warmup",
+                "num_samples",
+                "thinning",
+                "num_chains",
+                "num_samples_to_save",
+            ]
+            if x not in args_leave_out
+        ]
 
     vals = []
     for p in param_names:
-        vals.append(str(args.get(p, ".")))
+        if p in naming_args:
+            vals.append(str(naming_args[p]))
 
-    return f"{file_code}_" + "_".join(vals) + suffix
+    return f"{exp_prefix}__" + "_".join(vals) + "__" + desc_suffix
 
 
 def setup_signals():
@@ -58,20 +135,6 @@ def setup_signals():
 
     signal.signal(signal.SIGTERM, print_signal)
     signal.signal(signal.SIGCONT, print_signal)
-
-
-def save_training(path, final_state, metrics_history):
-    if final_state is not None:
-        with open(path, "wb") as file:
-            file.write(serialization.to_bytes(freeze({"params": final_state.params})))
-
-    with open(path + "_metrics_hist", "wb") as file:
-        dill.dump(metrics_history, file)
-    print(f"Saved {path}")
-
-
-def get_decoder_params(state):
-    return freeze({"params": state.params["VAE_Decoder_0"]})
 
 
 def update_args_once(args, key, value):
@@ -98,9 +161,3 @@ def update_args_11(args, exp_details, i, j):
     args["x"] = jnp.arange(0, 1, 1 / args["n"])  # if we have changed it!
 
     return args
-
-
-def save_samples(path, samples):
-    with open(path + "_samples", "wb") as file:
-        dill.dump(samples, file)
-    print(f"Saved {path}")

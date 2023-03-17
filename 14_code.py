@@ -11,6 +11,7 @@ import time
 import sys
 
 import jax.numpy as jnp
+
 # Numpyro
 import numpyro
 import optax
@@ -22,13 +23,21 @@ from reusable.gp import OneDGP_UnifLS
 from reusable.kernels import esq_kernel
 from reusable.loss import KLD, RCL, combo_loss, conditional_loss_wrapper
 from reusable.train_nn import SimpleTrainState, run_training_shuffle
-from reusable.util import (decoder_filename, get_savepath, save_samples,
-                           save_training, get_decoder_params, save_args)
+from reusable.util import (
+    save_samples,
+    save_datasets,
+    save_training,
+    gen_file_name,
+    save_args,
+    load_datasets,
+    get_decoder_params,
+)
 from reusable.vae import VAE, cvae_length_mcmc, cvae_sample
 
 numpyro.set_host_device_count(4)
 
 args = {
+    "expcode": 14,
     # GP prior configuration
     "n": 50,
     "dim": 2,
@@ -68,12 +77,11 @@ args.update(
         "thinning": 1,
         "num_chains": 3,
         "num_samples_to_save": 4000,
-
-        "rng_key_ground_truth": random.PRNGKey(4) 
+        "rng_key_ground_truth": random.PRNGKey(4),
     }
 )
 
-save_args("14", args)
+save_args(args["expcode"], "args", args)
 
 
 pre_generated_data = sys.argv[1] = "load_generated"
@@ -84,7 +92,6 @@ rng_key, _ = random.split(random.PRNGKey(4))
 
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 # generate a complete set of training and test data
-
 
 
 if not pre_generated_data:
@@ -110,15 +117,14 @@ if not pre_generated_data:
         draw_access="y_c",
         jitter=5e-5,
     )
-    
-    jnp.savez(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"raw_gp", leave_out=["num_epochs"])}', train=train_draws, test=test_draws)
+    save_datasets(
+        args["expcode"], gen_file_name(args["expcode"], args, "raw_gp", False, ["num_epochs"]), train_draws, test_draws
+    )
 
 else:
-    path = f'data/{decoder_filename("14", args, suffix=f"raw_gp.npz", leave_out=["num_epochs"])}'
-    data = jnp.load(path)
-    train_draws = data["train"]
-    test_draws = data["test"]
-
+    train_draws, test_draws = load_datasets(
+        args["expcode"], gen_file_name(args["expcode"], args, "raw_gp", False, ["num_epochs"])
+    )
 
 
 rng_key, rng_key_init, rng_key_init_state, rng_key_train, rng_key_shuffle = random.split(rng_key, 5)
@@ -138,13 +144,20 @@ state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key
 
 
 state, metrics_history = run_training_shuffle(
-    conditional_loss_wrapper(combo_loss(RCL, KLD)), lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
+    conditional_loss_wrapper(combo_loss(RCL, KLD)),
+    lambda *_: {},
+    args["num_epochs"],
+    train_draws,
+    test_draws,
+    state,
+    rng_key_shuffle,
 )
 
 args["decoder_params"] = get_decoder_params(state)
 
 
-save_training(f'{get_savepath()}/{decoder_filename("14", args)}', state, metrics_history)
+save_training(args["expcode"], gen_file_name(args["expcode"], args), state, metrics_history)
+
 
 def run_mcmc_cvae(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
     start = time.time()
@@ -157,7 +170,7 @@ def run_mcmc_cvae(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
         num_samples=args["num_samples"],
         num_chains=args["num_chains"],
         thinning=args["thinning"],
-        progress_bar=False
+        progress_bar=False,
     )
     mcmc.run(
         rng_key,
@@ -178,7 +191,7 @@ def run_mcmc_cvae(rng_key, model_mcmc, y_obs, obs_idx, c=None, verbose=False):
     return mcmc.get_samples()
 
 
- # fixed to generate a "ground truth" GP we will try and infer
+# fixed to generate a "ground truth" GP we will try and infer
 
 ground_truth_predictive = Predictive(OneDGP_UnifLS, num_samples=1)
 gt_draws = ground_truth_predictive(
@@ -503,7 +516,7 @@ x_obs = jnp.arange(0, args["n"] ** args["dim"])[obs_idx]
 rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
 
 mcmc_samples = run_mcmc_cvae(rng_key_true_mcmc, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=1)
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_true_ls_mcmc")}', mcmc_samples)
+save_samples(args["expcode"], gen_file_name(args["expcode"], args, "inference_true_ls_mcmc"), mcmc_samples)
 
 mcmc_samples = run_mcmc_cvae(rng_key_all_mcmc, cvae_length_mcmc, ground_truth_y_obs, obs_idx, c=None)
-save_samples(f'{get_savepath()}/{decoder_filename("14", args, suffix=f"inference_all_ls_mcmc")}', mcmc_samples)
+save_samples(args["expcode"], gen_file_name(args["expcode"], args, "inference_all_ls_mcmc"), mcmc_samples)
