@@ -22,7 +22,7 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y", 
     prev = start
     print(f"Starting, need {batch_size}", flush=True)
     while all_generated <= 5 * batch_size:
-        to_generate = min(500, batch_size - num_successes)
+        to_generate = min(1000, batch_size - num_successes)
         
         key, new_key = random.split(key, 2) # otherwise will just generate the same data!
         new_draws = __gen_batch(x, gp_model, gp_kernel, to_generate, new_key, draw_access, jitter)
@@ -55,7 +55,7 @@ def get_batches_generator(x, gp_model, gp_kernel, num_batches, batch_size, draw_
 
     return func
 
-def gen_all_gp_batches(x, gp_model, gp_kernel, num_epochs, num_batches, batch_size, rng_key, draw_access="y", jitter=1e-6):
+def gen_all_gp_batches(x, gp_model, gp_kernel, num_epochs, num_batches, batch_size, rng_key, draw_access="y", jitter=1e-5):
 
     draws = gen_one_batch(x, gp_model, gp_kernel, num_epochs* num_batches * batch_size, rng_key, draw_access, jitter)
 
@@ -63,7 +63,7 @@ def gen_all_gp_batches(x, gp_model, gp_kernel, num_epochs, num_batches, batch_si
     draws = jnp.reshape(draws, (num_epochs, num_batches, batch_size, -1))  # note the last shape size will be args["n"]
     return draws
 
-def gen_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y", jitter=1e-6):
+def gen_gp_batches(x, gp_model, gp_kernel, num_batches, batch_size, rng_key, draw_access="y", jitter=1e-5):
 
     draws = gen_one_batch(x, gp_model, gp_kernel, num_batches * batch_size, rng_key, draw_access, jitter)
 
