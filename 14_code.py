@@ -93,7 +93,7 @@ use_gp = len(sys.argv) >= 2 and sys.argv[1] == "use_gp"
 
 on_arc = "SLURM_JOBID" in os.environ
 
-gp = BuildGP(args["gp_kernel"], 5e-5, args["length_prior_choice"], args["length_prior_arguments"])
+gp = BuildGP(args["gp_kernel"], 5e-5, None, True, args["length_prior_choice"], args["length_prior_arguments"])
 
 
 rng_key, _ = random.split(random.PRNGKey(4))
@@ -146,7 +146,7 @@ elif not use_gp:
             False,
             ["num_epochs", "hidden_dim1", "hidden_dim2", "latent_dim", "vae_var", "learning_rate"],
         ),
-        on_arc=on_arc
+        on_arc=on_arc,
     )
 
 
@@ -154,7 +154,6 @@ rng_key, rng_key_init, rng_key_init_state, rng_key_train, rng_key_shuffle = rand
 
 
 if not use_gp:
-
 
     module = VAE(
         hidden_dim1=args["hidden_dim1"],
@@ -169,7 +168,6 @@ if not use_gp:
     tx = optax.adam(args["learning_rate"])
     state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init_state)
 
-
     state, metrics_history = run_training_shuffle(
         conditional_loss_wrapper(combo_loss(RCL, KLD)),
         lambda *_: {},
@@ -181,10 +179,6 @@ if not use_gp:
     )
 
     save_training(args["expcode"], gen_file_name(args["expcode"], args), state, metrics_history)
-
-    cvae = cvae_length_mcmc(
-        args["hidden_dim1"], args["hidden_dim2"], args["latent_dim"], get_decoder_params(state), "uniform"
-    )
 
 
 # fixed to generate a "ground truth" GP we will try and infer
@@ -213,10 +207,22 @@ args["ground_truth_y_obs"] = args["ground_truth_y_draw"][args["obs_idx"]]
 save_args(args["expcode"], "gp" if use_gp else "v6", args)
 
 
-
 rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
 
-f = gp if use_gp else cvae
+f = (
+    BuildGP(args["gp_kernel"], 5e-5, args["obs_idx"], True, args["length_prior_choice"], args["length_prior_arguments"])
+    if use_gp
+    else cvae_length_mcmc(
+        args["hidden_dim1"],
+        args["hidden_dim2"],
+        args["latent_dim"],
+        get_decoder_params(state),
+        args["obs_idx"],
+        True,
+        args["length_prior_choice"],
+        args["length_prior_arguments"],
+    )
+)
 
 
 label = "gp" if use_gp else "cvae"
@@ -230,13 +236,14 @@ mcmc_samples = run_mcmc(
     f,
     args["x"],
     args["ground_truth_y_obs"],
-    args["obs_idx"],
     condition=args["ground_truth_ls"],
     verbose=True,
 )
 
 save_samples(
-    args["expcode"], gen_file_name(args["expcode"], args, f"inference_true_ls_mcmc_{label}", include_mcmc=True), mcmc_samples
+    args["expcode"],
+    gen_file_name(args["expcode"], args, f"inference_true_ls_mcmc_{label}", include_mcmc=True),
+    mcmc_samples,
 )
 
 
@@ -254,5 +261,7 @@ mcmc_samples = run_mcmc(
 )
 
 save_samples(
-    args["expcode"], gen_file_name(args["expcode"], args, f"inference_all_ls_mcmc_{label}", include_mcmc=True), mcmc_samples
+    args["expcode"],
+    gen_file_name(args["expcode"], args, f"inference_all_ls_mcmc_{label}", include_mcmc=True),
+    mcmc_samples,
 )

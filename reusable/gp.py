@@ -52,11 +52,11 @@ def setup_prior(length_prior_choice, prior_args):
     
     raise NotImplementedError(f"Unknown prior choice {length_prior_choice}")
 
-def BuildGP(gp_kernel, jitter=2e-5, length_prior_choice="invgamma", prior_args={}):
+def BuildGP(gp_kernel, jitter=2e-5, obs_idx=None,  noise=False, length_prior_choice="invgamma", prior_args={}):
     prior = setup_prior(length_prior_choice, prior_args)
 
     # -1.3418452 0.21973312
-    def func(x, var=None, length=None, y=None, obs_idx=None, noise=False, **kwargs):
+    def func(x, var=None, length=None, y=None, **kwargs):
         """The original, basic GP, with the length sampled from a fixed prior"""
         if length==None:
             length = numpyro.sample("kernel_length", prior)
