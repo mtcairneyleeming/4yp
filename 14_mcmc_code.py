@@ -26,7 +26,7 @@ numpyro.set_host_device_count(4)
 
 args = {
     # GP prior configuration
-    "n": 50,
+    "n": 20,
     "dim": 2,
     "gp_kernel": esq_kernel,
     "rng_key": random.PRNGKey(2),

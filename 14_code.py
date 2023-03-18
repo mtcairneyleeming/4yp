@@ -32,8 +32,8 @@ from reusable.util import (
     load_datasets,
     get_decoder_params,
 )
-from reusable.vae import VAE, cvae_length_mcmc, cvae_sample
-
+from reusable.vae import VAE, cvae_sample
+from reusable.mcmc import cvae_length_mcmc
 numpyro.set_host_device_count(4)
 
 args = {
@@ -84,7 +84,7 @@ args.update(
 save_args(args["expcode"], "args", args)
 
 
-pre_generated_data = sys.argv[1] = "load_generated"
+pre_generated_data = sys.argv[1] == "load_generated"
 
 
 rng_key, _ = random.split(random.PRNGKey(4))
