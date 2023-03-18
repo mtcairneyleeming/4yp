@@ -23,12 +23,12 @@ def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_draws_hpdi(draws, x, title, ylabel, ax=None, save_path=None):
+def plot_draws_hpdi(draws, x, title, ylabel, ax=None, save_path=None, _min=-2, _max=2):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-    _min, _max = -2, 2
+
     lines_alpha = 0.1
     N_lines = 15
 

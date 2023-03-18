@@ -84,18 +84,18 @@ args = {
 }
 
 
-save_args(args["expcode"], "v3", args)
-
-
 pre_generated_data = len(sys.argv) >= 2 and sys.argv[1] == "load_generated"
 
 use_gp = len(sys.argv) >= 2 and sys.argv[1] == "use_gp"
 
-rng_key= random.PRNGKey(4)
+save_args(args["expcode"], "gp" if use_gp else "v6", args)
+
+
+rng_key = random.PRNGKey(4)
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 
 
-gp = BuildGP(args["gp_kernel"], 5e-5, args["length_prior_choice"], args["length_prior_arguments"])
+gp = BuildGP(args["gp_kernel"], 8e-6, args["length_prior_choice"], args["length_prior_arguments"])
 
 if not pre_generated_data and not use_gp:
 
@@ -135,7 +135,14 @@ if not pre_generated_data and not use_gp:
 
 elif not use_gp:
     train_draws, test_draws = load_datasets(
-        args["expcode"], gen_file_name(args["expcode"], args, "raw_gp", False,    ["num_epochs", "hidden_dim1", "hidden_dim2", "latent_dim", "vae_var", "learning_rate"])
+        args["expcode"],
+        gen_file_name(
+            args["expcode"],
+            args,
+            "raw_gp",
+            False,
+            ["num_epochs", "hidden_dim1", "hidden_dim2", "latent_dim", "vae_var", "learning_rate"],
+        ),
     )
 
 
@@ -171,12 +178,10 @@ if not use_gp:
     save_training(args["expcode"], gen_file_name(args["expcode"], args), state, metrics_history)
 
 
-
 ground_truth = jnp.array(s["estimate"])
 
 
-
-rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
+rng_key, rng_key_mcmc = random.split(rng_key, 2)
 
 # hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params,  obs_idx=None, length_prior_choice
 
@@ -199,11 +204,14 @@ mcmc_samples = run_mcmc(
     args["num_warmup"],
     args["num_samples"],
     args["num_chains"],
-    rng_key_true_mcmc,
+    rng_key_mcmc,
     f,
     args["x"],
     ground_truth,
     jnp.arange(args["x"].shape[0]),
     condition=None,
+    verbose=True,
 )
-save_samples(args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_mcmc"), mcmc_samples)
+save_samples(
+    args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_mcmc", include_mcmc=True), mcmc_samples
+)
