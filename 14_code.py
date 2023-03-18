@@ -89,16 +89,17 @@ args.update(
 
 pre_generated_data = len(sys.argv) >= 2 and sys.argv[1] == "load_generated"
 
+use_gp = len(sys.argv) >= 2 and sys.argv[1] == "use_gp"
+
 
 gp = BuildGP(args["gp_kernel"], 5e-5, args["length_prior_choice"], args["length_prior_arguments"])
 
 
 rng_key, _ = random.split(random.PRNGKey(4))
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
-# generate a complete set of training and test data
 
 
-if not pre_generated_data:
+if not pre_generated_data and not use_gp:
 
     # NOTE changed draw_access - y_c is [y,u] for this
     train_draws = gen_gp_batches(
@@ -122,46 +123,66 @@ if not pre_generated_data:
         jitter=5e-5,
     )
     save_datasets(
-        args["expcode"], gen_file_name(args["expcode"], args, "raw_gp", False, ["num_epochs"]), train_draws, test_draws
+        args["expcode"],
+        gen_file_name(
+            args["expcode"],
+            args,
+            "raw_gp",
+            False,
+            ["num_epochs", "hidden_dim1", "hidden_dim2", "latent_dim", "vae_var", "learning_rate"],
+        ),
+        train_draws,
+        test_draws,
     )
 
-else:
+elif not use_gp:
     train_draws, test_draws = load_datasets(
-        args["expcode"], gen_file_name(args["expcode"], args, "raw_gp", False, ["num_epochs"])
+        args["expcode"],
+        gen_file_name(
+            args["expcode"],
+            args,
+            "raw_gp",
+            False,
+            ["num_epochs", "hidden_dim1", "hidden_dim2", "latent_dim", "vae_var", "learning_rate"],
+        ),
     )
 
 
 rng_key, rng_key_init, rng_key_init_state, rng_key_train, rng_key_shuffle = random.split(rng_key, 5)
 
-module = VAE(
-    hidden_dim1=args["hidden_dim1"],
-    hidden_dim2=args["hidden_dim2"],
-    latent_dim=args["latent_dim"],
-    out_dim=args["total_n"],
-    conditional=True,
-)
-params = module.init(rng_key_init, jnp.ones((args["batch_size"], args["total_n"] + 1,)))[
-    "params"
-]  # initialize parameters by passing a template image
-tx = optax.adam(args["learning_rate"])
-state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init_state)
+
+if not use_gp:
 
 
-state, metrics_history = run_training_shuffle(
-    conditional_loss_wrapper(combo_loss(RCL, KLD)),
-    lambda *_: {},
-    args["num_epochs"],
-    train_draws,
-    test_draws,
-    state,
-    rng_key_shuffle,
-)
+    module = VAE(
+        hidden_dim1=args["hidden_dim1"],
+        hidden_dim2=args["hidden_dim2"],
+        latent_dim=args["latent_dim"],
+        out_dim=args["total_n"],
+        conditional=True,
+    )
+    params = module.init(rng_key_init, jnp.ones((args["batch_size"], args["total_n"] + 1,)))[
+        "params"
+    ]  # initialize parameters by passing a template image
+    tx = optax.adam(args["learning_rate"])
+    state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init_state)
 
-save_training(args["expcode"], gen_file_name(args["expcode"], args), state, metrics_history)
 
-cvae = cvae_length_mcmc(
-    args["hidden_dim1"], args["hidden_dim2"], args["latent_dim"], get_decoder_params(state), "uniform"
-)
+    state, metrics_history = run_training_shuffle(
+        conditional_loss_wrapper(combo_loss(RCL, KLD)),
+        lambda *_: {},
+        args["num_epochs"],
+        train_draws,
+        test_draws,
+        state,
+        rng_key_shuffle,
+    )
+
+    save_training(args["expcode"], gen_file_name(args["expcode"], args), state, metrics_history)
+
+    cvae = cvae_length_mcmc(
+        args["hidden_dim1"], args["hidden_dim2"], args["latent_dim"], get_decoder_params(state), "uniform"
+    )
 
 
 # fixed to generate a "ground truth" GP we will try and infer
@@ -187,10 +208,16 @@ args["obs_mask"] = random.permutation(rng_key_ground_truth_obs_mask, obs_mask)
 args["obs_idx"] = jnp.array([x for x in range(args["total_n"]) if args["obs_mask"][x] == True])
 args["ground_truth_y_obs"] = args["ground_truth_y_draw"][args["obs_idx"]]
 
+save_args(args["expcode"], "gp" if use_gp else "v6", args)
 
-save_args(args["expcode"], "args", args)
+
 
 rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
+
+f = gp if use_gp else cvae
+
+
+label = "gp" if use_gp else "cvae"
 
 
 mcmc_samples = run_mcmc(
@@ -198,7 +225,7 @@ mcmc_samples = run_mcmc(
     args["num_samples"],
     args["num_chains"],
     rng_key_true_mcmc,
-    cvae,
+    f,
     args["x"],
     args["ground_truth_y_obs"],
     args["obs_idx"],
@@ -207,7 +234,7 @@ mcmc_samples = run_mcmc(
 )
 
 save_samples(
-    args["expcode"], gen_file_name(args["expcode"], args, "inference_true_ls_mcmc", include_mcmc=True), mcmc_samples
+    args["expcode"], gen_file_name(args["expcode"], args, f"inference_true_ls_mcmc_{label}", include_mcmc=True), mcmc_samples
 )
 
 
@@ -216,7 +243,7 @@ mcmc_samples = run_mcmc(
     args["num_samples"],
     args["num_chains"],
     rng_key_true_mcmc,
-    cvae,
+    f,
     args["x"],
     args["ground_truth_y_obs"],
     args["obs_idx"],
@@ -225,5 +252,5 @@ mcmc_samples = run_mcmc(
 )
 
 save_samples(
-    args["expcode"], gen_file_name(args["expcode"], args, "inference_all_ls_mcmc", include_mcmc=True), mcmc_samples
+    args["expcode"], gen_file_name(args["expcode"], args, f"inference_all_ls_mcmc_{label}", include_mcmc=True), mcmc_samples
 )
