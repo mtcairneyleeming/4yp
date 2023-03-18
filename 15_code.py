@@ -73,8 +73,8 @@ args = {
     "train_num_batches": 800,
     "test_num_batches": 20,
     # MCMC parameters
-    "num_warmup": 4000,
-    "num_samples": 4000,
+    "num_warmup": 16000,
+    "num_samples": 20000,
     "thinning": 1,
     "num_chains": 3,
     "num_samples_to_save": 4000,
