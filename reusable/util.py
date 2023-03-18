@@ -73,12 +73,12 @@ def load_samples(exp_code, file_name, samples_file_ext=".samples"):
         return dill.load(file)
 
 
-def save_datasets(exp_code, file_name, train_data, test_data, data_file_ext=".data"):
+def save_datasets(exp_code, file_name, train_data, test_data, data_file_ext=".npz"):
     path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
     jnp.savez(path, train=train_data, test=test_data)
 
 
-def load_datasets(exp_code, file_name, data_file_ext=".data"):
+def load_datasets(exp_code, file_name, data_file_ext=".npz"):
     path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
     data = jnp.load(path)
     train_draws = data["train"]
