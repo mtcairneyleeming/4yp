@@ -23,6 +23,7 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y", 
     print(f"Starting, need {batch_size}", flush=True)
     while all_generated <= 5 * batch_size:
         to_generate = min(1000, batch_size - num_successes)
+        old_num_successes = num_successes
         
         key, new_key = random.split(key, 2) # otherwise will just generate the same data!
         new_draws = __gen_batch(x, gp_model, gp_kernel, to_generate, new_key, draw_access, jitter)
@@ -39,7 +40,7 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y", 
             draws = jnp.concatenate((draws, filtered), axis=0)
 
         curr = time.time()
-        print(f"Looped: gen {to_generate}/{batch_size - num_successes} , elapsed: {curr-start}, last batch in {curr-prev}", flush=True)
+        print(f"Looped: gen {to_generate}/{batch_size - old_num_successes} , elapsed: {curr-start}, last batch in {curr-prev}", flush=True)
         prev = curr
         if num_successes == batch_size:
             print(f"Used {all_generated}, total time = {curr - start}", flush=True)
