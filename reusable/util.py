@@ -78,8 +78,11 @@ def save_datasets(exp_code, file_name, train_data, test_data, data_file_ext=".np
     jnp.savez(path, train=train_data, test=test_data)
 
 
-def load_datasets(exp_code, file_name, data_file_ext=".npz"):
-    path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
+def load_datasets(exp_code, file_name, data_file_ext=".npz", on_arc=False):
+    if on_arc:
+        path = f"data/{file_name}{data_file_ext}"
+    else:
+        path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
     data = jnp.load(path)
     train_draws = data["train"]
     test_draws = data["test"]

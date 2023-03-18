@@ -9,7 +9,7 @@ test on GP with true ls 0.05
 
 import time
 import sys
-
+import os
 import jax.numpy as jnp
 
 # Numpyro
@@ -91,6 +91,7 @@ pre_generated_data = len(sys.argv) >= 2 and sys.argv[1] == "load_generated"
 
 use_gp = len(sys.argv) >= 2 and sys.argv[1] == "use_gp"
 
+on_arc = "SLURM_JOBID" in os.environ
 
 gp = BuildGP(args["gp_kernel"], 5e-5, args["length_prior_choice"], args["length_prior_arguments"])
 
@@ -145,6 +146,7 @@ elif not use_gp:
             False,
             ["num_epochs", "hidden_dim1", "hidden_dim2", "latent_dim", "vae_var", "learning_rate"],
         ),
+        on_arc=on_arc
     )
 
 
