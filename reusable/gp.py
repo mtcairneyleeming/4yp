@@ -29,24 +29,34 @@ def OneDGP(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, noise=False
 
     return y
 
-def BuildGP(gp_kernel, jitter=2e-5, length_prior_choice="invgamma", **prior_args):
+def setup_prior(length_prior_choice, prior_args):
     if length_prior_choice == "invgamma":
         conc = prior_args.get("concentration", 4)
         rate = prior_args.get("rate", 1)
-        prior = dist.InverseGamma(conc, rate)
+        return  dist.InverseGamma(conc, rate)
 
     elif length_prior_choice == "lognormal":
         loc= prior_args.get("location", -1.34)
         scale = prior_args.get("scale", 4)
-        prior=dist.LogNormal(loc, scale)
+        return dist.LogNormal(loc, scale)
     
     elif length_prior_choice == "gamma":
         conc = prior_args.get("concentration", 4)
         rate = prior_args.get("rate", 1)
-        prior = dist.Gamma(conc, rate)
+        return  dist.Gamma(conc, rate)
+
+    elif length_prior_choice == "uniform":
+        lower = prior_args.get("lower", 0.01)
+        upper = prior_args.get("upper", 0.5)
+        return dist.Uniform(lower, upper)
+    
+    raise NotImplementedError(f"Unknown prior choice {length_prior_choice}")
+
+def BuildGP(gp_kernel, jitter=2e-5, length_prior_choice="invgamma", prior_args={}):
+    prior = setup_prior(length_prior_choice, prior_args)
 
     # -1.3418452 0.21973312
-    def func(x, var=None, length=None, y=None, noise=False, **kwargs):
+    def func(x, var=None, length=None, y=None, obs_idx=None, noise=False, **kwargs):
         """The original, basic GP, with the length sampled from a fixed prior"""
         if length==None:
             length = numpyro.sample("kernel_length", prior)
@@ -63,7 +73,11 @@ def BuildGP(gp_kernel, jitter=2e-5, length_prior_choice="invgamma", **prior_args
         else:
             sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
             f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k))
-            y= numpyro.sample("y", dist.Normal(f, sigma), obs=y)
+                
+            if obs_idx is not None: # in this case y will be lower dimension, and observed - unsurprisingly!
+                y= numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
+            else:
+                y= numpyro.sample("y", dist.Normal(f, sigma), obs=y)
 
         y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
 
