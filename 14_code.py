@@ -63,12 +63,12 @@ args.update(
         "x": jnp.reshape(args["grid_x"], (-1, args["dim"])),
         "conditional": True,
         # VAE configuration
-        "hidden_dim1": 35,
-        "hidden_dim2": 32,
-        "latent_dim": 25,
+        "hidden_dim1": 70,
+        "hidden_dim2": 70,
+        "latent_dim": 50,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 500,
+        "num_epochs": 200,
         "learning_rate": 1.0e-3,
         "batch_size": 400,
         "train_num_batches": 400,
