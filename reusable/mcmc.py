@@ -91,6 +91,7 @@ def run_mcmc(
     verbose=False,
     thinning=1,
     condition_name="length",
+    group_by_chain=False
 ):
     start = time.time()
 
@@ -116,4 +117,4 @@ def run_mcmc(
 
     print("\nMCMC elapsed time:", time.time() - start)
 
-    return mcmc.get_samples()
+    return mcmc.get_samples(group_by_chain=group_by_chain)
