@@ -29,6 +29,7 @@ from reusable.util import (
     save_args,
     load_datasets,
     get_decoder_params,
+    load_training_state,
 )
 from reusable.vae import VAE
 from reusable.mcmc import cvae_length_mcmc, run_mcmc
@@ -65,7 +66,7 @@ args = {
     "hidden_dim1": 40,
     "hidden_dim2": 40,
     "latent_dim": 20,
-    "vae_var": 0.1,
+    "vae_var": 5,
     # learning
     "num_epochs": 200,
     "learning_rate": 1.0e-3,
@@ -73,10 +74,10 @@ args = {
     "train_num_batches": 800,
     "test_num_batches": 20,
     # MCMC parameters
-    "num_warmup": 16000,
-    "num_samples": 20000,
+    "num_warmup": 32000,
+    "num_samples": 40000,
     "thinning": 1,
-    "num_chains": 3,
+    "num_chains": 4,
     "num_samples_to_save": 4000,
     "rng_key_ground_truth": random.PRNGKey(4),
     "length_prior_choice": "lognormal",
@@ -84,20 +85,33 @@ args = {
 }
 
 
-pre_generated_data = len(sys.argv) >= 2 and sys.argv[1] == "load_generated"
+use_pregenerated = len(sys.argv) >= 2 and sys.argv[1] == "load_generated"
+
+use_pretrained = len(sys.argv) >= 2 and sys.argv[1] == "use_pretrained"
 
 use_gp = len(sys.argv) >= 2 and sys.argv[1] == "use_gp"
 
-save_args(args["expcode"], "gp" if use_gp else "v6", args)
+if use_gp:
+    use_pretrained = True
+if use_pretrained:
+    use_pregenerated = True
+
+save_args(args["expcode"], "gp2" if use_gp else "v10", args)
 
 
 rng_key = random.PRNGKey(4)
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 
 
-gp = BuildGP(args["gp_kernel"], 8e-6, args["length_prior_choice"], args["length_prior_arguments"])
+gp = BuildGP(
+    args["gp_kernel"],
+    8e-6,
+    noise=True,
+    length_prior_choice=args["length_prior_choice"],
+    prior_args=args["length_prior_arguments"],
+)
 
-if not pre_generated_data and not use_gp:
+if not use_pregenerated:
 
     # NOTE changed draw_access - y_c is [y,u] for this
     train_draws = gen_gp_batches(
@@ -133,7 +147,7 @@ if not pre_generated_data and not use_gp:
         test_draws,
     )
 
-elif not use_gp:
+if use_pregenerated and not use_pretrained:
     train_draws, test_draws = load_datasets(
         args["expcode"],
         gen_file_name(
@@ -148,20 +162,21 @@ elif not use_gp:
 
 rng_key, rng_key_init, rng_key_init_state, rng_key_train, rng_key_shuffle = random.split(rng_key, 5)
 
-if not use_gp:
 
-    module = VAE(
-        hidden_dim1=args["hidden_dim1"],
-        hidden_dim2=args["hidden_dim2"],
-        latent_dim=args["latent_dim"],
-        out_dim=args["x"].shape[0],
-        conditional=True,
-    )
-    params = module.init(rng_key_init, jnp.ones((args["batch_size"], args["x"].shape[0] + 1,)))[
-        "params"
-    ]  # initialize parameters by passing a template image
-    tx = optax.adam(args["learning_rate"])
-    state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init_state)
+module = VAE(
+    hidden_dim1=args["hidden_dim1"],
+    hidden_dim2=args["hidden_dim2"],
+    latent_dim=args["latent_dim"],
+    out_dim=args["x"].shape[0],
+    conditional=True,
+)
+params = module.init(rng_key_init, jnp.ones((args["batch_size"], args["x"].shape[0] + 1,)))[
+    "params"
+]  # initialize parameters by passing a template image
+tx = optax.adam(args["learning_rate"])
+state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init_state)
+
+if not use_pretrained:
 
     state, metrics_history = run_training_shuffle(
         conditional_loss_wrapper(combo_loss(RCL, KLD)),
@@ -176,6 +191,11 @@ if not use_gp:
     args["decoder_params"] = get_decoder_params(state)
 
     save_training(args["expcode"], gen_file_name(args["expcode"], args), state, metrics_history)
+
+else:
+    args["decoder_params"] = get_decoder_params(
+        load_training_state(args["expcode"], gen_file_name(args["expcode"], args), state)
+    )
 
 
 ground_truth = jnp.array(s["estimate"])
@@ -193,8 +213,10 @@ f = (
         args["hidden_dim2"],
         args["latent_dim"],
         args["decoder_params"],
-        args["length_prior_choice"],
-        args["length_prior_arguments"],
+        obs_idx=None,
+        noise=True,
+        length_prior_choice=args["length_prior_choice"],
+        prior_args=args["length_prior_arguments"],
     )
 )
 
@@ -208,7 +230,6 @@ mcmc_samples = run_mcmc(
     f,
     args["x"],
     ground_truth,
-    jnp.arange(args["x"].shape[0]),
     condition=None,
     verbose=True,
 )
