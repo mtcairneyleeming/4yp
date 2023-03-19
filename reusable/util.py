@@ -4,7 +4,7 @@ import signal
 from flax import serialization
 from flax.core.frozen_dict import freeze
 import jax.numpy as jnp
-
+import glob
 
 def __get_savepath():
     # work out where to save outputs:
@@ -17,15 +17,22 @@ def __get_savepath():
     return save_path
 
 
+def count_saved_args(exp_code, args_file_ext):
+    base_path = __get_savepath() + str(exp_code)
+    return len(glob.glob1(base_path, f"*{args_file_ext}"))
+
+
 def save_args(exp_code, file_name, args, args_file_ext=".args"):
-    path = __get_savepath() + f"/{exp_code}/{exp_code}_{file_name}{args_file_ext}"
+    count = count_saved_args(exp_code, args_file_ext) + 1
+    path = __get_savepath() + f"/{exp_code}/{exp_code}_{count}_{file_name}{args_file_ext}"
     with open(path, "wb+") as f:
         dill.dump(args, f)
     print(f"Saved args to {path}")
 
 
-def load_args(exp_code, file_name, args_file_ext=".args"):
-    path = __get_savepath() + f"/{exp_code}/{exp_code}_{file_name}{args_file_ext}"
+def load_args(exp_code, count, file_name, args_file_ext=".args"):
+    insert = f"{count}_{file_name}" if count is not None else file_name
+    path = __get_savepath() + f"/{exp_code}/{exp_code}_{insert}{args_file_ext}"
     with open(path, "rb+") as f:
         return dill.load(f)
 
