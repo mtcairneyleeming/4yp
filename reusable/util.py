@@ -6,6 +6,7 @@ from flax.core.frozen_dict import freeze
 import jax.numpy as jnp
 import glob
 
+
 def __get_savepath():
     # work out where to save outputs:
     if os.path.isdir("output"):  # running in an ARC job (using my submission script)
@@ -18,7 +19,7 @@ def __get_savepath():
 
 
 def count_saved_args(exp_code, args_file_ext):
-    base_path = __get_savepath() + str(exp_code)
+    base_path = f"{__get_savepath()}/{str(exp_code)}"
     return len(glob.glob1(base_path, f"*{args_file_ext}"))
 
 
@@ -80,6 +81,19 @@ def load_samples(exp_code, file_name, samples_file_ext=".samples"):
         return dill.load(file)
 
 
+def save_scores(exp_code, file_name, scores, scores_file_ext=".scores"):
+    base_path = __get_savepath() + f"/{exp_code}/{file_name}"
+    with open(base_path + scores_file_ext, "wb") as file:
+        dill.dump(scores, file)
+    print(f"Saved {base_path+scores_file_ext}")
+
+
+def load_scoress(exp_code, file_name, scores_file_ext=".scores"):
+    base_path = __get_savepath() + f"/{exp_code}/{file_name}"
+    with open(base_path + scores_file_ext, "rb") as file:
+        return dill.load(file)
+
+
 def save_datasets(exp_code, file_name, train_data, test_data, data_file_ext=".npz"):
     path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
     jnp.savez(path, train=train_data, test=test_data)
@@ -112,6 +126,7 @@ def gen_file_name(exp_prefix, naming_args, desc_suffix="", include_mcmc=False, a
             "learning_rate",
             "batch_size",
             "train_num_batches",
+            "scoring_num_draws",
         ]
         if x not in args_leave_out
     ]
