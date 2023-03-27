@@ -58,7 +58,7 @@ def load_training_state(exp_code, file_name, dummy_state, state_file_ext=".state
 
 
 def get_decoder_params(state):
-    return freeze({"params": state.params["VAE_Decoder_0"]})
+    return freeze({"params": state["params"]["VAE_Decoder_0"]})
 
 
 def load_training_history(exp_code, file_name, hist_file_ext=".hist"):
