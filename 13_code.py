@@ -48,8 +48,8 @@ args.update(
         "mmd_rbf_ls": 4.0,
 
 
-        "Arange": [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800],
-        "Brange": [50, 100, 200, 300, 400, 500, 600],
+        "Arange": [100, 200, 400, 800, 1600, 3200, 6400],
+        "Brange": [100, 200, 400, 800, 1600, 3200, 6400],
         "Adesc": "n",
         "Bdesc": "train_num_batches",
         "jitter_scaling": 1/300 * 4e-6  # n times this gives the jitter
