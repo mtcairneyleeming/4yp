@@ -53,7 +53,7 @@ def covariance(sample):
     #return jnp.divide(centred.T @ centred, variance.T @ variance)
     return centred.T @ centred
 
-def correlation_order(sample, order=2):
+def old_correlation_order(sample, order=2):
     """ for the (centred) sample, calculate a standardised correlation coefficient 
      for the given order.
      e.g. for order=1, we calculate the Pearson correlation coef,
@@ -68,7 +68,7 @@ def correlation_order(sample, order=2):
     scaling_term = jnp.power(standard_dev, order )
     return jnp.divide(powered_vector.T @ powered_vector, scaling_term.T @ scaling_term)
 
-def alt_correlation_order(sample, order=2):
+def correlation(sample, order=2):
     """ Calculate the Pearson correlation coeff for X^order
     """
 
@@ -80,25 +80,4 @@ def alt_correlation_order(sample, order=2):
         return jnp.divide(centred.T @ centred, standard_dev.T @ standard_dev)
     
     return pearson(jnp.power(sample - sample_central_moment(1, sample), order))
-
-# def moment_matrix(order, sample):
-#     print(sample.shape)
-#     n = sample.shape[0]
-
-    
-
-#     match order:
-#         case 2:
-#             return jnp.cov(sample.T)
-#         case 4:
-#             # eq 3.12 in Mardia 1970
-#             sample_cov = jnp.cov(sample)
-#             print("Cov", sample_cov.shape)
-#             print("Sample T", centred.T.shape)
-#             print("Cov inv", jnp.linalg.inv(sample_cov.T).shape) 
-#             inte = centred.T @ jnp.linalg.inv(sample_cov.T) @ centred
-#             print(inte.shape)
-#             return jnp.mean( jnp.power(inte, 2), axis = )
-#         case _:
-#             raise NotImplementedError()
 
