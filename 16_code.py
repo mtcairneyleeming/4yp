@@ -205,9 +205,12 @@ else:
 
 rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)
 
+print("Drawing from GP", flush=True)
 
 gp_predictive = Predictive(gp, num_samples=args["scoring_num_draws"])
 gp_draws = gp_predictive(rng_key_gp, x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5)["y"]
+
+print("Drawing from VAE", flush=True)
 
 plot_vae_predictive = Predictive(vae_sample, num_samples=args["scoring_num_draws"])
 vae_draws = plot_vae_predictive(
@@ -219,11 +222,13 @@ vae_draws = plot_vae_predictive(
     decoder_params=get_decoder_params(final_state),
 )["f"]
 
-
+print("Calculating Frobenius norms", flush=True)
 frob_norms = calc_frob_norms(calc_correlation_mats(vae_draws), calc_correlation_mats(gp_draws))
 
+print("Calculating moments", flush=True)
 vae_moments = calc_moments(vae_draws)
 
+print("Calculating MMD", flush=True)
 mmd_scores = calc_mmd_scores(gp_draws, vae_draws)
 
 save_scores(

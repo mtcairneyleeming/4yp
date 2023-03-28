@@ -58,7 +58,13 @@ def load_training_state(exp_code, file_name, dummy_state, arc_data_dir=False, st
 
 
 def get_decoder_params(state):
-    return freeze({"params": state["params"]["VAE_Decoder_0"]})
+    try:
+        p = state["params"]["VAE_Decoder_0"]
+
+    except TypeError:
+        p = state.params["VAE_Decoder_0"]
+
+    return freeze({"params": p})
 
 
 def load_training_history(exp_code, file_name, hist_file_ext=".hist"):
