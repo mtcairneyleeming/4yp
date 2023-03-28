@@ -39,10 +39,10 @@ printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus 
 echo "Files copied across:"
 tree
 
-echo $1
+echo "$@"
 echo $SLURM_ARRAY_TASK_ID
 
-python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID $1
+python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID "$@"
 
 
 # note -p, as each job in the array will try and create the output folder
