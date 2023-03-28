@@ -5,7 +5,7 @@ Rewritten loss function comparisons
 Compare (various sets of ) loss functions, save training history & decoder/etc.
 + results of MMD/Frobenius norm comparisons
 """
-import time
+import os
 import sys
 import jax.numpy as jnp
 import jax.random as random
@@ -18,10 +18,16 @@ from reusable.gp import BuildGP
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD, MMD_rqk
 from reusable.train_nn import SimpleTrainState, run_training_shuffle
-from reusable.util import save_args, save_training, setup_signals, gen_file_name, save_scores, get_decoder_params
+from reusable.util import save_args, save_training, setup_signals, gen_file_name, save_scores, get_decoder_params, save_datasets, load_datasets, load_training_state
 from reusable.vae import VAE, vae_sample
 
 from reusable.scoring import calc_correlation_mats, calc_frob_norms, calc_mmd_scores, calc_moments
+
+pre_generated_data = len(sys.argv) >= 4 and sys.argv[3] == "load_generated"
+
+pre_trained =  len(sys.argv) >= 4 and sys.argv[3] == "pre_trained"
+
+on_arc = "SLURM_JOBID" in os.environ
 
 experiment = str(sys.argv[2])
 index = int(sys.argv[1])
@@ -52,7 +58,9 @@ args.update(
         "test_num_batches": 20,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
-        "scoring_num_draws": 20000,
+        "scoring_num_draws": 5000,
+
+        "expcode": "16"
     }
 )
 if experiment == "exp1":
@@ -122,16 +130,43 @@ gp = BuildGP(
     prior_args=args["length_prior_arguments"],
 )
 
-train_draws = gen_gp_batches(
-    args["x"], gp, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
-)
 
-test_draws = gen_gp_batches(
-    args["x"], gp, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
-)
+if not pre_trained:
+    if not pre_generated_data :    
+        train_draws = gen_gp_batches(
+            args["x"], gp, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
+        )
+
+        test_draws = gen_gp_batches(
+            args["x"], gp, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
+        )
+        save_datasets(
+            args["expcode"],
+            gen_file_name(
+                args["expcode"],
+                args,
+                "raw_gp",
+                data_only=True
+            ),
+            train_draws,
+            test_draws,
+        )
+
+    else:
+        train_draws, test_draws = load_datasets(
+            args["expcode"],
+            gen_file_name(
+                args["expcode"],
+                args,
+                "raw_gp",
+                data_only=True,
+            ),
+            on_arc=on_arc,
+        )
 
 
-print("Generated data", flush=True)
+
+    print("Generated data", flush=True)
 
 
 rng_key, rng_key_init, rng_key_train, rng_key_shuffle = random.split(rng_key, 4)
@@ -148,17 +183,25 @@ tx = optax.adam(args["learning_rate"])
 state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
 
 
-print("Starting training", flush=True)
+
+if not pre_trained:
+    print("Starting training", flush=True)
 
 
-final_state, metrics_history = run_training_shuffle(
-    loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
-)
+    final_state, metrics_history = run_training_shuffle(
+        loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
+    )
 
-save_training("16", gen_file_name("16", args, args["experiment"] + loss_fn.__name__), final_state, metrics_history)
+    save_training("16", gen_file_name("16", args, args["experiment"] + loss_fn.__name__), final_state, metrics_history)
 
-del train_draws
-del test_draws
+    del train_draws
+    del test_draws
+
+
+
+else:
+    final_state = load_training_state("16", gen_file_name("16", args, args["experiment"] + loss_fn.__name__), state)
+
 
 rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)
 

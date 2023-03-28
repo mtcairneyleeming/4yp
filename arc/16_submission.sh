@@ -1,7 +1,7 @@
 #! /bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
-#SBATCH --job-name=4yp_15
+#SBATCH --job-name=4yp_16
 #SBATCH --time=12:00:00
 #SBATCH --partition=short
 #SBATCH --output ./arc/reports/%A-%a.out # STDOUT
