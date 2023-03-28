@@ -10,7 +10,7 @@ import glob
 def __get_savepath(exp_code, arc_data_dir=False):
     # work out where to save outputs:
     if arc_data_dir:
-        save_path = "data"
+        return "data"
     elif os.path.isdir("output"):  # running in an ARC job (using my submission script)
         save_path = "output"
     elif os.path.isdir("learnt_models"):  # running from the root directory of the git repo, not in a job
