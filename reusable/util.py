@@ -91,7 +91,7 @@ def load_scores(exp_code, file_name, scores_file_ext=".scores"):
 
 
 def save_datasets(exp_code, file_name, train_data, test_data, data_file_ext=".npz"):
-    path = f"{__get_savepath()}/{exp_code}/{file_name}{data_file_ext}"
+    path = f"{__get_savepath(exp_code)}/{file_name}{data_file_ext}"
     jnp.savez(path, train=train_data, test=test_data)
     print(f"Saved {path}")
 
