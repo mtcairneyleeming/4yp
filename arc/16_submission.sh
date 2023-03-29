@@ -10,6 +10,14 @@
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
 #SBATCH --mem=64G
 
+# taken from https://dhruveshp.com/blog/2021/signal-propagation-on-slurm/
+#SBATCH --signal=B:TERM@300 # tells the controller
+                        # to send SIGTERM to the job 5 mins
+                        # before its time ends to give it a
+                        # chance for better cleanup.
+
+
+
 
 export WORKING_DIR=/data/coml-hawkes/lady6235/4yp
 export CONDA_PREFIX=/data/coml-hawkes/lady6235/jax_numpyro_env
@@ -42,7 +50,14 @@ tree
 echo "$@"
 echo $SLURM_ARRAY_TASK_ID
 
-python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID "$@"
+
+trap 'echo signal recieved in BATCH!; kill -15 "${PID}"; wait "${PID}";' SIGINT SIGTERM
+
+python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID "$@" &
+
+PID="$!"
+
+wait "${PID}"
 
 
 # note -p, as each job in the array will try and create the output folder
