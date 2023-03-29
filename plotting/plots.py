@@ -23,7 +23,7 @@ def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_draws_hpdi(draws, x, title, ylabel, ax=None, save_path=None, _min=-2, _max=2):
+def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -40,7 +40,7 @@ def plot_draws_hpdi(draws, x, title, ylabel, ax=None, save_path=None, _min=-2, _
     for j in range(1, N_lines):
         ax.plot(x, draws[j, :], alpha=lines_alpha, color="darkgreen", label="")
     # separate from other GP draws to label it
-    ax.plot(x, draws[0, :], alpha=lines_alpha, color="darkgreen", label="GP draws")
+    ax.plot(x, draws[0, :], alpha=lines_alpha, color="darkgreen", label=f"{legend_label} draws")
 
     ax.fill_between(x, hpdi1[0], hpdi1[1], alpha=0.1, interpolate=True, label="95% HPDI")
     ax.plot(x, mean1, label="mean")
@@ -74,13 +74,13 @@ def quick_compare_draws(
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def compare_draws(x, draws1, draws2, title1, title2, ylabel1, ylabel2, save_path=None):
+def compare_draws(x, draws1, draws2, title1, title2, ylabel1, ylabel2, legend_label, save_path=None):
 
     # plot results
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 3))
 
-    plot_draws_hpdi(draws1, x, title1, ylabel1, axs[0])
-    plot_draws_hpdi(draws2, x, title2, ylabel2, axs[1])
+    plot_draws_hpdi(draws1, x, title1, ylabel1, legend_label, axs[0])
+    plot_draws_hpdi(draws2, x, title2, ylabel2, legend_label, axs[1])
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
