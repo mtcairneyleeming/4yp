@@ -1,6 +1,7 @@
 gen_plots
 learnt_models
 
+data/tl_2010*
 
 .vscode
 
