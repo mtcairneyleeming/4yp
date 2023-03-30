@@ -13,6 +13,8 @@ dependencies:
   - jupyterlab
   - arviz
   - dill
+  - geopandas=0.12.2
+  - pyreadr=0.4.7
 #  - tqdm
   - pip
   - pip:
