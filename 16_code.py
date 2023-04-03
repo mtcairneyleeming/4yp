@@ -61,10 +61,10 @@ args.update(
         "latent_dim": 30,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 150,
+        "num_epochs": 50,
         "learning_rate": 1.0e-4,
         "batch_size": 200,
-        "train_num_batches": 400,
+        "train_num_batches": 200,
         "test_num_batches": 20,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
