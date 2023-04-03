@@ -49,7 +49,7 @@ args.update(
 
 
         "Arange": [100, 200, 400, 800, 1600, 3200, 6400],
-        "Brange": [100, 200, 400, 800, 1600, 3200, 6400],
+        "Brange": [100, 200, 400, 800],
         "Adesc": "n",
         "Bdesc": "train_num_batches",
         "jitter_scaling": 1/300 * 4e-6  # n times this gives the jitter

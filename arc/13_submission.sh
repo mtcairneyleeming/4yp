@@ -5,7 +5,7 @@
 #SBATCH --partition=short
 #SBATCH --output ./arc/reports/%A-%a.out # STDOUT
 #SBATCH --job-name=4yp_13
-#SBATCH --array=0-76
+#SBATCH --array=0-27
 
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
