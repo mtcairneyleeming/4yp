@@ -189,6 +189,28 @@ if experiment == "exp7":
     ]
 
 
+if experiment == "exp8":
+    
+    args["Arange"] = [1, 2, 4, 6, 8]
+    args["Brange"] = [0.1, 1, 10, 100]
+
+    temp_loss_fns = [
+        [
+            combo3_loss(
+                RCL,
+                MMD_rqk(a, b),
+                KLD,
+                0.1,
+                10,
+                1
+            )
+            for a in args["Arange"]
+        ]
+        for b in args["Brange"]
+    ]
+    args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
+
+args["experiment"] = experiment
 
 args["loss_fn_names"] = [x.__name__ for x in args["loss_fns"]]
 
