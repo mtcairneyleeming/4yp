@@ -157,6 +157,23 @@ if experiment == "exp5":
     args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
 
 
+
+if experiment == "exp6":
+    args["experiment"] = "exp6"
+
+    args["loss_fns"] = [
+        combo_loss(RCL, KLD),
+        combo_loss(KLD, MMD_rbf(1.0), 1, 50),
+        combo_loss(KLD, MMD_rbf(4.0), 1, 50),
+        combo_loss(KLD, MMD_rbf(7.0), 1, 50),
+        combo_loss(KLD, MMD_rbf(10.0), 1, 50),
+        combo3_loss(RCL, KLD, MMD_rbf(1.0), 1, 1, 50),
+        combo3_loss(RCL, KLD, MMD_rbf(4.0), 1, 1, 50),
+        combo3_loss(RCL, KLD, MMD_rbf(7.0), 1, 1, 50),
+        combo3_loss(RCL, KLD, MMD_rbf(10.0), 1, 1, 50),
+    ]
+
+
 args["loss_fn_names"] = [x.__name__ for x in args["loss_fns"]]
 
 save_args(args["expcode"], args["experiment"], args)
