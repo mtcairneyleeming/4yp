@@ -63,7 +63,7 @@ args.update(
         # learning
         "num_epochs": 50,
         "learning_rate": 1.0e-4,
-        "batch_size": 200,
+        "batch_size": 400,
         "train_num_batches": 200,
         "test_num_batches": 20,
         "length_prior_choice": "invgamma",
@@ -172,6 +172,22 @@ if experiment == "exp6":
         combo3_loss(RCL, KLD, MMD_rbf(7.0), 1, 1, 50),
         combo3_loss(RCL, KLD, MMD_rbf(10.0), 1, 1, 50),
     ]
+
+if experiment == "exp7":
+    args["experiment"] = "exp7"
+
+    args["loss_fns"] = [
+        combo_loss(RCL, KLD),
+        combo_loss(KLD, MMD_rbf(1.0), 1, 10),
+        combo_loss(KLD, MMD_rbf(4.0), 1, 10),
+        combo_loss(KLD, MMD_rbf(7.0), 1, 10),
+        combo_loss(KLD, MMD_rbf(10.0), 1, 10),
+        combo3_loss(RCL, KLD, MMD_rbf(1.0), 1, 1, 10),
+        combo3_loss(RCL, KLD, MMD_rbf(4.0), 1, 1, 10),
+        combo3_loss(RCL, KLD, MMD_rbf(7.0), 1, 1, 10),
+        combo3_loss(RCL, KLD, MMD_rbf(10.0), 1, 1, 10),
+    ]
+
 
 
 args["loss_fn_names"] = [x.__name__ for x in args["loss_fns"]]
