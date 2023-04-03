@@ -211,71 +211,97 @@ def migrate12(code, path, args):
                 print(e)
 
 
-def migrate11(code, path, args):
-    aL = len(args["Arange"])
-    bL = len(args["Brange"])
+def migrate11(path, exp_args):
+    code = exp_args["experiment"]
+    aL = len(exp_args[exp_args["experiment"]]["Arange"])
+    bL = len(exp_args[exp_args["experiment"]]["Brange"])
 
-    loss_fn = "RCL+KLD"
+    
+    for loss_fn in exp_args["loss_fns"]:
+        loss_fn = str.replace(loss_fn, ":", "-")
 
-    for i, a in enumerate(args["Arange"]):
-   
-        for j, b in enumerate(args["Brange"]):
-            with open(path, "rb") as f:
-                new_args = dill.load(f)
+        for i, a in enumerate(exp_args[exp_args["experiment"]]["Arange"]):
+    
+            for j, b in enumerate(exp_args[exp_args["experiment"]]["Brange"]):
+                with open(path, "rb") as f:
+                    new_args = dill.load(f)
 
-            new_args = update_args_11(new_args, new_args, i, j)
+                new_args = update_args_11(new_args, exp_args[exp_args["experiment"]], i, j)
 
-            index = i + j * aL
-        
-            name = f"{loss_fn}_13_{index}"
-        
-            file_path = f'{__get_savepath()}/{decoder_filename("13/13", new_args, suffix=name)}'
-            try: 
-                with open(file_path + "_metrics_hist", "rb") as file:
-                    metrics_history = dill.load(file)
+                index = i + j * aL
+            
+                name = f"{loss_fn}_13_{index}"
+                index = i + j * aL
 
+                old_num_epochs = new_args["num_epochs"]
 
-                dummy = VAE(
-                    hidden_dim1=args["hidden_dim1"],
-                    hidden_dim2=args["hidden_dim2"],
-                    latent_dim=args["latent_dim"],
-                    out_dim=args["n"],
-                    conditional=False,
-                )
-                dummy_params = dummy.init(random.PRNGKey(0), jnp.ones((args["n"],)))
+                if args["experiment"] == "11_exp3":
+                    name = f"{loss_fn}_{code}_{i}_{j}"
+                    
+                else:
+                    name = f"{loss_fn}_{code}_{index}"
 
-                with open(file_path, "rb") as file:
-                    bytes = file.read()
-                    # serialization.to_bytes(freeze({"params": final_state.params["VAE_Decoder_0"]})))
-                    # new_dummy  =  freeze({"params" : dummy_params})
-                    new_state = serialization.from_bytes(dummy_params, bytes)
-
-                save_training(code, gen_file_name(code, new_args, str(index)), new_state, metrics_history)
-
-                os.remove(file_path + "_metrics_hist")
-                os.remove(file_path)
-            except FileNotFoundError as e:
-                print(e)
+                if args["experiment"] == "11_exp3" or args["experiment"] == "11_exp7":
+                    print("chaning",  exp_args["num_epochs"],  new_args["num_epochs"])
+                    new_args["num_epochs"] = 150 # exp_args["num_epochs"]  # due to error updating arguments
+            
+                file_path = f'{__get_savepath("11")}/{decoder_filename("11", new_args, suffix=name)}'
+            
+                try: 
+                    with open(file_path + "_metrics_hist", "rb") as file:
+                        metrics_history = dill.load(file)
 
 
-code = "12"
+                    dummy = VAE(
+                        hidden_dim1=args["hidden_dim1"],
+                        hidden_dim2=args["hidden_dim2"],
+                        latent_dim=args["latent_dim"],
+                        out_dim=args["n"],
+                        conditional=False,
+                    )
+                    dummy_params = dummy.init(random.PRNGKey(0), jnp.ones((args["latent_dim"],)))
+
+                    with open(file_path, "rb") as file:
+                        bytes = file.read()
+                        new_state = serialization.from_bytes(dummy_params, bytes)
+
+                    new_args["num_epochs"] = old_num_epochs
+
+                    save_training("11", gen_file_name("11", new_args, f"{code}_{index}_{loss_fn}"), new_state, metrics_history)
+
+                    os.remove(file_path + "_metrics_hist")
+                    os.remove(file_path)
+                except FileNotFoundError as e:
+                    print ("!" * 400)
+                    print(e)
+
+
+code = "11"
 folder = f"learnt_models/{code}"
 
 error_count = 0
 for file in os.listdir(folder):
     if file.endswith(".dill"):
         p = folder  + "/" +file
+        print(p)
         with open(p, "rb") as f:
             args = dill.load(f)
         
         name = file.replace(".dill", "").replace(f"{code}_", "")
 
-        if "loss_functions" in args:
-            args["loss_functions"] = [str.replace(loss_fn, ":", "-") for loss_fn in args["loss_functions"]]
+
+
+        if "loss_fns" in args:
+            old_lfs = args["loss_fns"]
+            args["loss_fns"] = [str.replace(loss_fn, ":", "-") for loss_fn in args["loss_fns"]]
+
+        if "loss_fns" not in args:
+            old_lfs = ["RCL+KLD", "0.01RCL+KLD+10mmd_rbf_sum:4.0"]
+            args["loss_fns"] =["RCL+KLD", "0.01RCL+KLD+10mmd_rbf_sum-4.0"]
 
         save_args(code, name, args)
         
-        migrate12(code,p, args)
+        migrate11(p, args, )
 
         os.remove(p)
 
