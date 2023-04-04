@@ -75,12 +75,14 @@ args.update(
 if experiment == "exp1": # basic introduction to different loss functions 
        args["loss_fns"] = [
         combo_loss(RCL, KLD),
+        combo_loss(KLD, MMD_rbf(1.0), 1, 10),
         combo_loss(KLD, MMD_rbf(4.0), 1, 10),
+        combo_loss(KLD, MMD_rbf(7.0), 1, 10),
         combo_loss(KLD, MMD_rbf(10.0), 1, 10),
-        combo_loss(KLD, MMD_rbf(20.0), 1, 10),
+        combo3_loss(RCL, KLD, MMD_rbf(1.0), 1, 1, 10),
         combo3_loss(RCL, KLD, MMD_rbf(4.0), 1, 1, 10),
+        combo3_loss(RCL, KLD, MMD_rbf(7.0), 1, 1, 10),
         combo3_loss(RCL, KLD, MMD_rbf(10.0), 1, 1, 10),
-        combo3_loss(RCL, KLD, MMD_rbf(20.0), 1, 1, 10),
     ]
 
 
