@@ -62,9 +62,9 @@ args.update(
         "vae_var": 0.1,
         # learning
         "num_epochs": 50,
-        "learning_rate": 1.0e-4,
+        "learning_rate": 1.0e-3,
         "batch_size": 400,
-        "train_num_batches": 200,
+        "train_num_batches": 500,
         "test_num_batches": 20,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
@@ -72,59 +72,8 @@ args.update(
         "expcode": "16",
     }
 )
-if experiment == "exp1":
-    args["experiment"] = "exp1"
-
-    args["loss_fns"] = [
-        combo_loss(RCL, KLD),
-        combo_loss(KLD, MMD_rbf(4.0)),
-        combo_loss(KLD, MMD_rbf(10.0)),
-        combo_loss(KLD, MMD_rbf(20.0)),
-        combo3_loss(RCL, KLD, MMD_rbf(4.0)),
-        combo3_loss(RCL, KLD, MMD_rbf(10.0)),
-        combo3_loss(RCL, KLD, MMD_rbf(20.0)),
-    ]
-
-
-if experiment == "exp2":
-    args["experiment"] = "exp2"
-    args["Arange"] = [4, 8, 12, 20]
-    args["Brange"] = [0.25, 1, 5, 10, 20]
-
-    temp_loss_fns = [[combo_loss(MMD_rqk(a, b), KLD) for a in args["Arange"]] for b in args["Brange"]]
-    args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
-
-if experiment == "exp2_rcl":
-    args["experiment"] = "exp2_rcl"
-    args["Arange"] = [4, 8, 12, 20]
-    args["Brange"] = [0.25, 1, 5, 10, 20]
-
-    temp_loss_fns = [
-        [
-            combo3_loss(
-                RCL,
-                MMD_rqk(a, b),
-                KLD,
-            )
-            for a in args["Arange"]
-        ]
-        for b in args["Brange"]
-    ]
-    args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
-
-if experiment == "exp3":
-    args["experiment"] = "exp3"
-    args["Arange"] = [10, 1, 0.1, 0.01]
-    args["Brange"] = [1, 5, 10, 15, 20]
-
-    temp_loss_fns = [[combo3_loss(RCL, MMD_rbf(4.0), KLD, a, b, 1) for a in args["Arange"]] for b in args["Brange"]]
-    args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
-
-
-if experiment == "exp4":
-    args["experiment"] = "exp4"
-
-    args["loss_fns"] = [
+if experiment == "exp1": # basic introduction to different loss functions 
+       args["loss_fns"] = [
         combo_loss(RCL, KLD),
         combo_loss(KLD, MMD_rbf(4.0), 1, 10),
         combo_loss(KLD, MMD_rbf(10.0), 1, 10),
@@ -135,62 +84,7 @@ if experiment == "exp4":
     ]
 
 
-if experiment == "exp5":
-    args["experiment"] = "exp5"
-    args["Arange"] = [4, 8, 12, 20]
-    args["Brange"] = [0.25, 1, 5, 10, 20]
-
-    temp_loss_fns = [
-        [
-            combo3_loss(
-                RCL,
-                MMD_rqk(a, b),
-                KLD,
-                0.1,
-                10,
-                1
-            )
-            for a in args["Arange"]
-        ]
-        for b in args["Brange"]
-    ]
-    args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
-
-
-
-if experiment == "exp6":
-    args["experiment"] = "exp6"
-
-    args["loss_fns"] = [
-        combo_loss(RCL, KLD),
-        combo_loss(KLD, MMD_rbf(1.0), 1, 50),
-        combo_loss(KLD, MMD_rbf(4.0), 1, 50),
-        combo_loss(KLD, MMD_rbf(7.0), 1, 50),
-        combo_loss(KLD, MMD_rbf(10.0), 1, 50),
-        combo3_loss(RCL, KLD, MMD_rbf(1.0), 1, 1, 50),
-        combo3_loss(RCL, KLD, MMD_rbf(4.0), 1, 1, 50),
-        combo3_loss(RCL, KLD, MMD_rbf(7.0), 1, 1, 50),
-        combo3_loss(RCL, KLD, MMD_rbf(10.0), 1, 1, 50),
-    ]
-
-if experiment == "exp7":
-    args["experiment"] = "exp7"
-
-    args["loss_fns"] = [
-        combo_loss(RCL, KLD),
-        combo_loss(KLD, MMD_rbf(1.0), 1, 10),
-        combo_loss(KLD, MMD_rbf(4.0), 1, 10),
-        combo_loss(KLD, MMD_rbf(7.0), 1, 10),
-        combo_loss(KLD, MMD_rbf(10.0), 1, 10),
-        combo3_loss(RCL, KLD, MMD_rbf(1.0), 1, 1, 10),
-        combo3_loss(RCL, KLD, MMD_rbf(4.0), 1, 1, 10),
-        combo3_loss(RCL, KLD, MMD_rbf(7.0), 1, 1, 10),
-        combo3_loss(RCL, KLD, MMD_rbf(10.0), 1, 1, 10),
-    ]
-
-
-if experiment == "exp8":
-    
+if experiment == "exp2": # expand upon the MMD_rqk kerne;
     args["Arange"] = [1, 2, 4, 6, 8]
     args["Brange"] = [0.1, 1, 10, 100]
 
@@ -209,6 +103,15 @@ if experiment == "exp8":
         for b in args["Brange"]
     ]
     args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
+
+
+if experiment == "exp3": # vary the scaling term 
+    args["Arange"] = [10, 1, 0.1, 0.01]
+    args["Brange"] = [1, 5, 10, 15, 20]
+
+    temp_loss_fns = [[combo3_loss(RCL, MMD_rbf(4.0), KLD, a, b, 1) for a in args["Arange"]] for b in args["Brange"]]
+    args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
+
 
 args["experiment"] = experiment
 
