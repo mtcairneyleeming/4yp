@@ -74,13 +74,13 @@ def quick_compare_draws(
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def compare_draws(x, draws1, draws2, title1, title2, ylabel1, ylabel2, legend_label, save_path=None):
+def compare_draws(x, draws1, draws2, title1, title2, ylabel1, ylabel2, legend_label1, legend_label2, save_path=None):
 
     # plot results
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 3))
 
-    plot_draws_hpdi(draws1, x, title1, ylabel1, legend_label, axs[0])
-    plot_draws_hpdi(draws2, x, title2, ylabel2, legend_label, axs[1])
+    plot_draws_hpdi(draws1, x, title1, ylabel1, legend_label1, axs[0])
+    plot_draws_hpdi(draws2, x, title2, ylabel2, legend_label2, axs[1])
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
