@@ -83,6 +83,77 @@ class VAE(nn.Module):
 
         generated_x = VAE_Decoder(hidden_dim1=self.hidden_dim1, hidden_dim2=self.hidden_dim2, out_dim=self.out_dim)(x_sample) 
         return x, generated_x, z_mu,z_sd
+    
+
+
+class LeakyVAE_Encoder(nn.Module):
+
+    hidden_dim1 :int
+    hidden_dim2: int
+    latent_dim: int
+
+    @nn.compact
+    def __call__(self, x):
+        x = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="ENC Hidden1")(x)
+        x = nn.leaky_relu(x)
+        x = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="ENC Hidden2")(x)
+        x = nn.leaky_relu(x)
+        mean_z = nn.Dense(self.latent_dim, kernel_init=nn.initializers.normal(), name="ENC Mean")(x)
+        c = nn.Dense(self.latent_dim, kernel_init=nn.initializers.normal(), name="ENC Cov")(x)
+        diag_cov = jnp.exp(c)
+        return mean_z, diag_cov
+
+
+class LeakyVAE_Decoder(nn.Module):
+    """
+    VAE De
+    """
+    hidden_dim1: int
+    hidden_dim2: int
+    out_dim: int
+
+
+    @nn.compact
+    def __call__(self, x): 
+        x = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="DEC Hidden1")(x)
+        x = nn.leaky_relu(x)
+        x = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="DEC Hidden2")(x)
+        x = nn.leaky_relu(x)
+        x = nn.Dense(self.out_dim, kernel_init=nn.initializers.normal(), name="DEC Recons")(x)
+        return x
+
+
+
+
+class LeakyVAE(nn.Module):
+    ''' A complete JAX module for the VAE, for use in training
+    '''
+    hidden_dim1 :int
+    hidden_dim2: int
+    latent_dim: int
+    out_dim: int
+    conditional: bool
+
+
+    @nn.compact
+    def __call__(self, x, training=False):
+        z_mu, z_sd = LeakyVAE_Encoder(hidden_dim1=self.hidden_dim1, hidden_dim2=self.hidden_dim2, latent_dim=self.latent_dim) (x) 
+        '''During training random sample from the learned ZDIMS-dimensional
+           normal distribution; during inference its mean.
+        '''
+        if training:
+            rng_key = self.make_rng("train_latent_dist")
+            std = jnp.exp(z_sd / 2)
+            eps = random.normal(rng_key, std.shape)
+            x_sample = jnp.add( jnp.multiply(eps, std), z_mu)
+        else:
+            x_sample =  z_mu
+
+        if self.conditional:
+            x_sample = jnp.concatenate((x_sample, x[:, -1:]), axis=-1) # x[-1] will be the label, c
+
+        generated_x = LeakyVAE_Decoder(hidden_dim1=self.hidden_dim1, hidden_dim2=self.hidden_dim2, out_dim=self.out_dim)(x_sample) 
+        return x, generated_x, z_mu,z_sd
 
 
 class Single_Decoder(nn.Module):
