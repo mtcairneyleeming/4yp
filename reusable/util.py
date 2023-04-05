@@ -57,12 +57,12 @@ def load_training_state(exp_code, file_name, dummy_state, arc_data_dir=False, st
         return serialization.from_bytes(dummy_state, bytes)
 
 
-def get_decoder_params(state):
+def get_decoder_params(state, decoder_name = "VAE_Decoder_0"):
     try:
-        p = state["params"]["VAE_Decoder_0"]
+        p = state["params"][decoder_name]
 
     except TypeError:
-        p = state.params["VAE_Decoder_0"]
+        p = state.params[decoder_name]
 
     return freeze({"params": p})
 

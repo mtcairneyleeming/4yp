@@ -216,7 +216,7 @@ vae_draws = plot_vae_predictive(
     hidden_dim2=args["hidden_dim2"],
     latent_dim=args["latent_dim"],
     out_dim=args["n"],
-    decoder_params=get_decoder_params(final_state),
+    decoder_params=get_decoder_params(final_state, "LeakyVAE_Decoder_0"),
 )["f"]
 
 print("Calculating Frobenius norms", flush=True)
