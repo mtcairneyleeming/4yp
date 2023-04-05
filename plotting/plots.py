@@ -313,10 +313,13 @@ def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_re
     ax.set_xlabel(x_label)
     ax.set_ylabel("time difference" if is_relative else "time")
     ax.set_title(title)
-    ax.legend(title=legend_title)
+    ax.legend(title=legend_title, loc="upper left")
 
     if is_relative:
-        ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x))
+        ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x) + "s")
+
+    else:
+        ax.yaxis.set_major_formatter(lambda x, pos: str(x) + "s")
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
