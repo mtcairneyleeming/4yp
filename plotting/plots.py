@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 import numpy as onp
-from numpyro.diagnostics import hpdi
+import numpyro.diagnostics
 import math
 
 
@@ -34,16 +34,16 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
 
     # -----------------------
     draws = draws[~jnp.isnan(draws).any(axis=1), :]
-    mean1 = jnp.nanmean(draws, axis=0)
-    hpdi1 = hpdi(draws, 0.9)
+    mean = jnp.nanmean(draws, axis=0)
+    hpdi = numpyro.diagnostics.hpdi(draws, 0.9)
 
     for j in range(1, N_lines):
         ax.plot(x, draws[j, :], alpha=lines_alpha, color="darkgreen", label="")
     # separate from other GP draws to label it
     ax.plot(x, draws[0, :], alpha=lines_alpha, color="darkgreen", label=f"{legend_label} draws")
 
-    ax.fill_between(x, hpdi1[0], hpdi1[1], alpha=0.1, interpolate=True, label="95% HPDI")
-    ax.plot(x, mean1, label="mean")
+    ax.fill_between(x, hpdi[0], hpdi[1], alpha=0.1, interpolate=True, label="95% HPDI")
+    ax.plot(x, mean, label="mean")
     ax.legend(loc=4)
     ax.set_ylim([_min, _max])
     ax.set_xlabel("$x$")
@@ -52,6 +52,8 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+    return ax
 
 
 def quick_compare_draws(
@@ -103,7 +105,7 @@ def plot_cov_mat(draws, title, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_one_inference(x, ground_truth, x_obs, y_obs, inferred_priors, title, ax=None, save_path=None):
+def plot_one_inference(inferred_priors, x, ground_truth, x_obs, y_obs, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, legend=True):
     if ax is None:
         fig = plt.figure(figsize=(7, 5))
 
@@ -111,13 +113,13 @@ def plot_one_inference(x, ground_truth, x_obs, y_obs, inferred_priors, title, ax
 
     N_lines = 15
 
-    mean_post_pred = jnp.mean(inferred_priors, axis=0)
-    hpdi_post_pred = hpdi(inferred_priors, 0.9)
+    mean = jnp.mean(inferred_priors, axis=0)
+    hpdi = numpyro.diagnostics.hpdi(inferred_priors, 0.9)
 
     ax.fill_between(
         x,
-        hpdi_post_pred[0],
-        hpdi_post_pred[1],
+        hpdi[0],
+        hpdi[1],
         alpha=0.1,
         interpolate=True,
         label=f"posterior: 95% BCI",
@@ -128,79 +130,51 @@ def plot_one_inference(x, ground_truth, x_obs, y_obs, inferred_priors, title, ax
             inferred_priors[j, :],
             alpha=0.1,
             color="darkgreen",
-            label=f"posterior draws" if j == 0 else "",
+            label=f"{legend_label} posterior draws" if j == 0 else "",
         )
 
-    ax.plot(x, mean_post_pred, label="predicted mean")
+    ax.plot(x, mean, label="predicted mean")
     ax.plot(x, ground_truth, label="ground truth", color="orange")
     ax.scatter(x_obs, y_obs, color="red", label="observed data", s=60)
     ax.set_title(title)
-    ax.legend(loc=4)
-    ax.set_ylim([-2.5, 2.5])
+    if legend:
+        ax.legend(loc=4)
+    ax.set_ylim([_min, _max])
+    ax.set_xlabel("$x$")
+    ax.set_ylabel(ylabel)
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_ground_truth_with_priors(x, ground_truth, plain_prior_samples, title, ax=None, save_path=None):
-    if ax is None:
-        fig = plt.figure(figsize=(4, 5))
-
-        ax = fig.add_subplot(111)
-
-    N_lines = 30
-
-    mean_plain = jnp.mean(plain_prior_samples, axis=0)
-    hpdi_plain = hpdi(plain_prior_samples, 0.9)
-
-    N_lines = 30
-    for j in range(N_lines):
-        ax.plot(
-            x,
-            plain_prior_samples[j, :],
-            alpha=0.1,
-            color="darkgreen",
-            label="prior draws" if j == 0 else "",
-        )
-
-    ax.fill_between(
-        x,
-        hpdi_plain[0],
-        hpdi_plain[1],
-        alpha=0.1,
-        interpolate=True,
-        label=f"{title} prior: 95% BCI",
-    )
-    ax.plot(x, mean_plain, label="mean")
-    ax.legend(loc=4)
-    ax.set_ylim([-2.5, 2.5])
-    ax.set_title(title)
-
-    if save_path is not None:
-        fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
 def compare_inference_steps(
     x, ground_truth, x_obss, y_obss, plain_prior_samples, inferred_priors_list, title="VAE", fig=None, save_path=None
 ):
     if fig is None:
-        fig = plt.figure(figsize=(20, 5))
+        fig = plt.figure(figsize=(15, 4)) # should be 
 
     # plot results
     axs = fig.subplots(nrows=1, ncols=len(inferred_priors_list) + 1)
 
-    plot_ground_truth_with_priors(x, ground_truth, plain_prior_samples, title=f"{title} prior", ax=axs[0])
+    plot_draws_hpdi(plain_prior_samples, x, f"{title} draws", f"$f_{{{title}}}(x)", title, ax=axs[0])
 
     for i in range(len(inferred_priors_list)):
         plot_one_inference(
+            inferred_priors_list[i],
             x,
             ground_truth,
             x_obss[i],
             y_obss[i],
-            inferred_priors_list[i],
-            title="n datapoints =" + str(len(x_obss[i])),
+            f"{len(x_obss[i])} observations",
+            "$y=f_{VAE}(x)$",
+            "VAE",
             ax=axs[i + 1],
+            legend = (i == 0)
         )
+    fig.tight_layout()
+
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
