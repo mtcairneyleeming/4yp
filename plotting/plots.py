@@ -304,22 +304,24 @@ def plot_matrix(mat, title, vmin=None, vmax=None, fig=None, save_path=None):
 
 def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_relative=False, ax=None, save_path=None):
     if ax is None:
-        fig = plt.figure()
+        fig = plt.figure(figsize=(6,4))
         ax = fig.add_subplot(111)
 
     for i, label in enumerate(curve_labels):
         ax.plot(x, times[i], label=label)
 
     ax.set_xlabel(x_label)
-    ax.set_ylabel("time difference" if is_relative else "time")
+    ax.set_ylabel("time difference, minutes" if is_relative else "time, minutes")
     ax.set_title(title)
     ax.legend(title=legend_title, loc="upper left")
 
     if is_relative:
-        ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x) + "s")
+        ax.yaxis.set_major_formatter('{x:+.0f}')
+        #ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x) + "s")
 
     else:
-        ax.yaxis.set_major_formatter(lambda x, pos: str(x) + "s")
+        ax.yaxis.set_major_formatter('{x:.0f}')
+        #ax.yaxis.set_major_formatter(lambda x, pos: str(x) + "s")
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
