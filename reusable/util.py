@@ -57,7 +57,9 @@ def load_training_state(exp_code, file_name, dummy_state, arc_data_dir=False, st
         return serialization.from_bytes(dummy_state, bytes)
 
 
-def get_decoder_params(state, decoder_name = "VAE_Decoder_0"):
+def get_decoder_params(state, decoder_name = None):
+    if decoder_name == None:
+        decoder_name = "VAE_Decoder_0"
     try:
         p = state["params"][decoder_name]
 
@@ -119,6 +121,7 @@ def gen_file_name(exp_prefix, naming_args, desc_suffix="", data_only=False, incl
         "hidden_dim2",
         "latent_dim",
         "vae_var",
+        "leaky_relu",
         "num_epochs",
         "learning_rate",
         "batch_size",
