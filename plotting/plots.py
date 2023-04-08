@@ -231,7 +231,7 @@ def plot_training_pair(testA, trainA, testB, trainB, titleA, titleB, note, fig=N
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, scale="linear", ax=None, save_path=None):
+def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, scale="linear", use_legend=False, ax=None, save_path=None):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -240,15 +240,17 @@ def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, s
 
     for i, m in enumerate(moments):
         ax.plot(x_locs, m, color=colours[i], label=f"{moment_indices[i]}th moment")
-        ax.text(x_locs[-1] + 0.01 * i, m[-1], s=f"{moment_indices[i]}", va="center", fontsize=14, color=colours[i])
+        if not use_legend:
+            ax.text(x_locs[-1] + 0.01 * i, m[-1], s=f"{moment_indices[i]}", va="center", fontsize=14, color=colours[i])
 
     if correct_moments:
         for i, m in enumerate(correct_moments):
             ax.plot(x_locs, m, color=colours[i], linestyle=":")
 
     ax.set_xlabel("$x$")
-    ax.set_ylabel("moments")
-    # ax.legend()
+    #ax.set_ylabel("$i$th moment")
+    if use_legend:
+        ax.legend()
     ax.set_yscale(scale)
     ax.set_title(title)
 
@@ -256,25 +258,70 @@ def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, s
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_matrix(mat, title, vmin=None, vmax=None, fig=None, save_path=None):
-    if fig is None:
+def plot_matrix(mat, title=None, ylabel = None, vmin=None, vmax=None, show_colorbar=True, ax=None, save_path=None):
+    createdAx = False
+    if ax is None:
+        createdAx = True
         print("Created fig")
         fig = plt.figure()
 
-    ax = fig.subplots(1, 1)  # add_axes([.1, .1, 0.8, 0.8])
+        ax = fig.subplots(1, 1)  # add_axes([.1, .1, 0.8, 0.8])
 
     current_cmap = plt.get_cmap("plasma")
     current_cmap.set_bad(color="red")
 
     plotted = ax.matshow(mat, cmap=current_cmap, vmin=vmin, vmax=vmax, norm="log")
-    ax.axis("off")
-    ax.set_title(title)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_ticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    if title is not None:
+        ax.set_title(title)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel, fontsize="large")
+    if createdAx and show_colorbar:
+        fig.colorbar(plotted, ax=ax)
 
-    fig.colorbar(plotted, ax=ax)
-
-    if save_path is not None:
+    if createdAx and save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
+    return plotted
+
+
+def plot_correlation_grid(gp_draws, vae_draws, matrix_orders = [1,2,3,4,5]):
+    from plotting.plots import plot_matrix
+    from reusable.moments import correlation
+    from matplotlib.ticker import LogFormatter
+
+    gp_mats = []
+    vae_mats = [] 
+
+    for order in matrix_orders:
+        gp_mats.append(correlation(gp_draws, order))
+        vae_mats.append(correlation(vae_draws, order))
+
+    vmin = max(0.001, min([jnp.min(m, axis=None) for m in gp_mats] + [jnp.min(m, axis=None) for m in vae_mats]))
+    vmax =  max([jnp.max(m, axis=None) for m in gp_mats]+[jnp.max(m, axis=None) for m in vae_mats])
+
+    fig = plt.figure(figsize=(2 * len(matrix_orders), 4))
+    axs = fig.subplots(2, len(matrix_orders))
+
+    out = None
+    for k, order in enumerate(matrix_orders):
+        plot_matrix(gp_mats[k], title= f"$ f^{order}$", ylabel="GP" if k ==0 else None, vmin=vmin, vmax=vmax, ax=axs[0,k])
+        
+        out = plot_matrix(vae_mats[k], ylabel ="VAE" if k == 0 else None, vmin=vmin, vmax=vmax,  ax=axs[1,k])
+
+    fig.subplots_adjust(right=0.925, left=0)
+    cbar_ax = fig.add_axes([0.95, 0.125, 0.025, 0.75])
+    formatter = plt.LogFormatter(10, labelOnlyBase=False) 
+    #cb = plt.colorbar(ticks=[1,5,10,20,50], format=formatter)
+    cbar = fig.colorbar(out, cax=cbar_ax, ticks=[0,1,10,100,1000], format=formatter)
+    #cbar.ax.locator_params([1,2,3,4])
+
+    return fig
 
 def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_relative=False, ax=None, save_path=None):
     if ax is None:
