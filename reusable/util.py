@@ -12,7 +12,8 @@ def __get_savepath(exp_code, arc_data_dir=False, arc_learnt_models_dir=False):
     if arc_data_dir:
         return "data"
     elif arc_learnt_models_dir: # e.g. for accessing pre-trained 
-        save_path = "$DATA/4yp/learnt_models"
+        dir = os.getenv("WORKING_DIR")
+        save_path = f"{dir}/4yp/learnt_models"
     elif os.path.isdir("output"):  # running in an ARC job (using my submission script)
         save_path = "output"
     elif os.path.isdir("learnt_models"):  # running from the root directory of the git repo, not in a job
