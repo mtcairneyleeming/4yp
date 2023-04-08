@@ -7,10 +7,12 @@ import jax.numpy as jnp
 import glob
 
 
-def __get_savepath(exp_code, arc_data_dir=False):
+def __get_savepath(exp_code, arc_data_dir=False, arc_learnt_models_dir=False):
     # work out where to save outputs:
     if arc_data_dir:
         return "data"
+    elif arc_learnt_models_dir: # e.g. for accessing pre-trained 
+        save_path = "$DATA/4yp/learnt_models"
     elif os.path.isdir("output"):  # running in an ARC job (using my submission script)
         save_path = "output"
     elif os.path.isdir("learnt_models"):  # running from the root directory of the git repo, not in a job
@@ -51,13 +53,15 @@ def save_training(exp_code, file_name, final_state, metrics_history, state_file_
     print(f"Saved {base_path+hist_file_ext}")
 
 
-def load_training_state(exp_code, file_name, dummy_state, arc_data_dir=False, state_file_ext=".state"):
-    with open(__get_savepath(exp_code, arc_data_dir) + f"/{file_name}{state_file_ext}", "rb") as file:
+def load_training_state(exp_code, file_name, dummy_state, arc_learnt_models_dir=False, state_file_ext=".state"):
+    with open(
+        __get_savepath(exp_code, arc_learnt_models_dir=arc_learnt_models_dir) + f"/{file_name}{state_file_ext}", "rb"
+    ) as file:
         bytes = file.read()
         return serialization.from_bytes(dummy_state, bytes)
 
 
-def get_decoder_params(state, decoder_name = None):
+def get_decoder_params(state, decoder_name=None):
     if decoder_name == None:
         decoder_name = "VAE_Decoder_0"
     try:

@@ -200,7 +200,7 @@ if not pre_trained:
 
 
 else:
-    final_state = load_training_state(args["expcode"], file_name, state)
+    final_state = load_training_state(args["expcode"], file_name, state, arc_learnt_models_dir=on_arc)
 
 
 rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)
