@@ -68,16 +68,9 @@ def old_correlation_order(sample, order=2):
     scaling_term = jnp.power(standard_dev, order )
     return jnp.divide(powered_vector.T @ powered_vector, scaling_term.T @ scaling_term)
 
-def correlation(sample, order=2):
+def correlation(sample, order=1):
     """ Calculate the Pearson correlation coeff for X^order
     """
 
-    def pearson(sample):
-        centred = sample - sample_central_moment(1, sample)
-        variance = jnp.mean(jnp.power(centred, 2), axis=0)
-        standard_dev = jnp.float_power(variance, 1 / 2.0)
-
-        return jnp.divide(centred.T @ centred, standard_dev.T @ standard_dev)
-    
-    return pearson(jnp.power(sample - sample_central_moment(1, sample), order))
+    return jnp.corrcoef(jnp.power(sample - sample_central_moment(1, sample), order), rowvar=False)
 
