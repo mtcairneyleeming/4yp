@@ -1,19 +1,13 @@
 #! /bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=8
+#SBATCH --ntasks-per-node=4
 #SBATCH --time=12:00:00
 #SBATCH --partition=short
 #SBATCH --output ./arc/reports/%A-%a.out # STDOUT
-
 #SBATCH --array=0-47
-
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
-
-
 #SBATCH --mem=128G
-#comment out SBATCH --gres=gpu:1
-
 
 # taken from https://dhruveshp.com/blog/2021/signal-propagation-on-slurm/
 #SBATCH --signal=B:TERM@300 # tells the controller
@@ -44,20 +38,22 @@ mkdir -p output/$JOB_PREFIX # create an output folder, which we will copy across
 cp -R $WORKING_DIR/reusable   	. # the code we've actually written
 cp -R $WORKING_DIR/plotting   	. # the code we've actually written
 cp -R $WORKING_DIR/$FILE_TO_RUN . # the code we've actually written
+cp -R $WORKING_DIR/data/${JOB_PREFIX}_* ./data
 
+echo "Environment variables:"
+printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus etc.)
+echo "Files copied across:"
+tree
 
-#echo "Environment variables:"
-#printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus etc.)
-#echo "Files copied across:"
-#tree
+echo "$@"
+echo $SLURM_ARRAY_TASK_ID
+
 
 trap 'echo signal recieved in BATCH!; kill -15 "${PID}"; wait "${PID}";' SIGINT SIGTERM
 
-
-python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID $SLURM_JOB_NAME &
+python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID $SLURM_JOB_NAME "$@" &
 
 PID="$!"
-
 wait "${PID}"
 
 # note -p, as each job in the array will try and create the output folder

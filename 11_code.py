@@ -19,7 +19,7 @@ import sys
 index = int(sys.argv[1])
 experiment = sys.argv[2]
 
-pre_trained = len(sys.argv) >= 4 and sys.argv[3] == "pre_trained"
+pre_trained = len(sys.argv) > 3 and sys.argv[3] == "pre_trained"
 
 on_arc = "SLURM_JOBID" in os.environ
 
@@ -99,30 +99,24 @@ args.update(
                 500,
                 600,
                 800,
-            ],  # idea is diagonal is the same amount of data as current: 40,000
-            "Brange": [50, 67, 80, 100, 200, 400, 800],
+            ],  # idea is diagonal is the same amount of data as current: 200,000
+            "Brange": [250, 333, 400, 500, 1000, 2000, 4000],
             "Adesc": "batch_size",
             "Bdesc": "train_num_batches",
         },
         "exp7": {
-            "Arange": [25, 50, 100, 150, 200, 225, 250],
-            "Brange": [50, 100, 150, 200, 250, 300, 350, 400],
+            "Arange": [25, 50, 100, 150, 200, 250, 300],
+            "Brange": [1, 5, 10, 25, 50, 100],
             "Adesc": "n",
             "Bdesc": "num_epochs",
         },
         "exp8": {
-            "Arange": [25, 50, 100, 150, 200, 225, 250],
-            "Brange": [0.25, 0.5, 1, 1.5, 2, 3, 4],
+            "Arange": [25, 50, 100, 150, 200, 250, 300],
+            "Brange": [0.25, 0.5, 1, 2, 4, 8],
             "Adesc": "n",
             "Bdesc": "vae_scale_factor",
         },
         "exp9": {
-            "Arange": [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800],
-            "Brange": [50, 100, 200, 300, 400, 500, 600],
-            "Adesc": "n",
-            "Bdesc": "train_num_batches",
-        },
-        "exp10": {
             "Arange": [100, 200, 400, 800, 1600, 3200, 6400],
             "Brange": [100, 200, 400, 800],
             "Adesc": "n",
