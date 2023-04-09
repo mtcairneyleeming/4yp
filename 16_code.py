@@ -72,8 +72,8 @@ args.update(
         "expcode": "16",
     }
 )
-if experiment == "exp1": # basic introduction to different loss functions 
-       args["loss_fns"] = [
+if experiment == "exp1":  # basic introduction to different loss functions
+    args["loss_fns"] = [
         combo_loss(RCL, KLD),
         combo_loss(KLD, MMD_rbf(1.0), 1, 10),
         combo_loss(KLD, MMD_rbf(4.0), 1, 10),
@@ -86,28 +86,15 @@ if experiment == "exp1": # basic introduction to different loss functions
     ]
 
 
-if experiment == "exp2": # expand upon the MMD_rqk kerne;
+if experiment == "exp2":  # expand upon the MMD_rqk kerne;
     args["Arange"] = [1, 2, 4, 6, 8]
     args["Brange"] = [0.1, 1, 10, 100]
 
-    temp_loss_fns = [
-        [
-            combo3_loss(
-                RCL,
-                MMD_rqk(a, b),
-                KLD,
-                0.1,
-                10,
-                1
-            )
-            for a in args["Arange"]
-        ]
-        for b in args["Brange"]
-    ]
+    temp_loss_fns = [[combo3_loss(RCL, MMD_rqk(a, b), KLD, 0.1, 10, 1) for a in args["Arange"]] for b in args["Brange"]]
     args["loss_fns"] = [x for xs in temp_loss_fns for x in xs]
 
 
-if experiment == "exp3": # vary the scaling term 
+if experiment == "exp3":  # vary the scaling term
     args["Arange"] = [10, 1, 0.1, 0.01]
     args["Brange"] = [1, 5, 10, 15, 20]
 
@@ -228,11 +215,13 @@ frob_norms = calc_frob_norms(calc_correlation_mats(vae_draws), calc_correlation_
 print("Calculating moments", flush=True)
 vae_moments = calc_moments(vae_draws)
 
+gp_moments = calc_moments(gp_draws)
+
 print("Calculating MMD", flush=True)
 mmd_scores = calc_mmd_scores(gp_draws, vae_draws)
 
 save_scores(
     args["expcode"],
     file_name,
-    {"frobenius": frob_norms, "vae_moments": vae_moments, "mmd": mmd_scores},
+    {"frobenius": frob_norms, "vae_moments": vae_moments, "mmd": mmd_scores, "gp_moments": gp_moments},
 )
