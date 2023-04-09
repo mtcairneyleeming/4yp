@@ -28,7 +28,6 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-
     lines_alpha = 0.1
     N_lines = 15
 
@@ -105,7 +104,21 @@ def plot_cov_mat(draws, title, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_one_inference(inferred_priors, x, ground_truth, x_obs, y_obs, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, legend=True):
+def plot_one_inference(
+    inferred_priors,
+    x,
+    ground_truth,
+    x_obs,
+    y_obs,
+    title,
+    ylabel,
+    legend_label,
+    ax=None,
+    save_path=None,
+    _min=-2,
+    _max=2,
+    legend=True,
+):
     if ax is None:
         fig = plt.figure(figsize=(7, 5))
 
@@ -147,13 +160,11 @@ def plot_one_inference(inferred_priors, x, ground_truth, x_obs, y_obs, title, yl
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-
-
 def compare_inference_steps(
     x, ground_truth, x_obss, y_obss, plain_prior_samples, inferred_priors_list, title="VAE", fig=None, save_path=None
 ):
     if fig is None:
-        fig = plt.figure(figsize=(15, 4)) # should be 
+        fig = plt.figure(figsize=(15, 4))  # should be
 
     # plot results
     axs = fig.subplots(nrows=1, ncols=len(inferred_priors_list) + 1)
@@ -171,7 +182,7 @@ def compare_inference_steps(
             "$y=f_{VAE}(x)$",
             "VAE",
             ax=axs[i + 1],
-            legend = (i == 0)
+            legend=(i == 0),
         )
     fig.tight_layout()
 
@@ -231,7 +242,17 @@ def plot_training_pair(testA, trainA, testB, trainB, titleA, titleB, note, fig=N
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, scale="linear", use_legend=False, ax=None, save_path=None):
+def plot_moments(
+    moments,
+    moment_indices,
+    x_locs,
+    title,
+    correct_moments=None,
+    scale="linear",
+    use_legend=False,
+    ax=None,
+    save_path=None,
+):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -248,7 +269,7 @@ def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, s
             ax.plot(x_locs, m, color=colours[i], linestyle=":")
 
     ax.set_xlabel("$x$")
-    #ax.set_ylabel("$i$th moment")
+    # ax.set_ylabel("$i$th moment")
     if use_legend:
         ax.legend()
     ax.set_yscale(scale)
@@ -258,7 +279,7 @@ def plot_moments(moments, moment_indices, x_locs, title, correct_moments=None, s
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_matrix(mat, title=None, ylabel = None, vmin=None, vmax=None, show_colorbar=True, ax=None, save_path=None):
+def plot_matrix(mat, title=None, ylabel=None, vmin=None, vmax=None, show_colorbar=True, ax=None, save_path=None):
     createdAx = False
     if ax is None:
         createdAx = True
@@ -273,10 +294,10 @@ def plot_matrix(mat, title=None, ylabel = None, vmin=None, vmax=None, show_color
     plotted = ax.matshow(mat, cmap=current_cmap, vmin=vmin, vmax=vmax, norm="log")
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_ticks([])
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['left'].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
     if title is not None:
         ax.set_title(title)
     if ylabel is not None:
@@ -290,42 +311,42 @@ def plot_matrix(mat, title=None, ylabel = None, vmin=None, vmax=None, show_color
     return plotted
 
 
-def plot_correlation_grid(gp_draws, vae_draws, matrix_orders = [1,2,3,4,5]):
+def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
     from plotting.plots import plot_matrix
     from reusable.moments import correlation
     from matplotlib.ticker import LogFormatter
 
     gp_mats = []
-    vae_mats = [] 
+    vae_mats = []
 
     for order in matrix_orders:
         gp_mats.append(correlation(gp_draws, order))
         vae_mats.append(correlation(vae_draws, order))
 
     vmin = max(0.001, min([jnp.min(m, axis=None) for m in gp_mats] + [jnp.min(m, axis=None) for m in vae_mats]))
-    vmax =  max([jnp.max(m, axis=None) for m in gp_mats]+[jnp.max(m, axis=None) for m in vae_mats])
+    vmax = max([jnp.max(m, axis=None) for m in gp_mats] + [jnp.max(m, axis=None) for m in vae_mats])
 
     fig = plt.figure(figsize=(2 * len(matrix_orders), 4))
     axs = fig.subplots(2, len(matrix_orders))
 
     out = None
     for k, order in enumerate(matrix_orders):
-        plot_matrix(gp_mats[k], title= f"$ f^{order}$", ylabel="GP" if k ==0 else None, vmin=vmin, vmax=vmax, ax=axs[0,k])
-        
-        out = plot_matrix(vae_mats[k], ylabel ="VAE" if k == 0 else None, vmin=vmin, vmax=vmax,  ax=axs[1,k])
+        plot_matrix(
+            gp_mats[k], title=f"$ f^{order}$", ylabel="GP" if k == 0 else None, vmin=vmin, vmax=vmax, ax=axs[0, k]
+        )
+
+        out = plot_matrix(vae_mats[k], ylabel="VAE" if k == 0 else None, vmin=vmin, vmax=vmax, ax=axs[1, k])
 
     fig.subplots_adjust(right=0.925, left=0)
     cbar_ax = fig.add_axes([0.95, 0.125, 0.025, 0.75])
-    formatter = plt.LogFormatter(10, labelOnlyBase=False) 
-    #cb = plt.colorbar(ticks=[1,5,10,20,50], format=formatter)
-    cbar = fig.colorbar(out, cax=cbar_ax, ticks=[0,1,10,100,1000], format=formatter)
-    #cbar.ax.locator_params([1,2,3,4])
+    formatter = plt.LogFormatter(10, labelOnlyBase=False)
 
     return fig
 
+
 def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_relative=False, ax=None, save_path=None):
     if ax is None:
-        fig = plt.figure(figsize=(6,4))
+        fig = plt.figure(figsize=(6, 4))
         ax = fig.add_subplot(111)
 
     for i, label in enumerate(curve_labels):
@@ -337,12 +358,12 @@ def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_re
     ax.legend(title=legend_title, loc="upper left")
 
     if is_relative:
-        ax.yaxis.set_major_formatter('{x:+.0f}')
-        #ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x) + "s")
+        ax.yaxis.set_major_formatter("{x:+.0f}")
+        # ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x) + "s")
 
     else:
-        ax.yaxis.set_major_formatter('{x:.0f}')
-        #ax.yaxis.set_major_formatter(lambda x, pos: str(x) + "s")
+        ax.yaxis.set_major_formatter("{x:.0f}")
+        # ax.yaxis.set_major_formatter(lambda x, pos: str(x) + "s")
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -431,6 +452,7 @@ def plot_2d_one_draw(draw, title, mask=None, fig=None, save_path=None, vmin=None
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
     return plotted.get_clim()
+
 
 def plot_2d_draws(draws, num_to_plot, num_per_row, title, fig=None, save_path=None):
     if fig is None:
