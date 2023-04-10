@@ -8,6 +8,9 @@ import jax.random as random
 import optax
 from jax import random
 from numpyro.infer import Predictive
+import numpyro
+
+numpyro.set_host_device_count(4)
 
 from reusable.data import gen_gp_batches
 from reusable.gp import BuildGP
