@@ -286,7 +286,7 @@ for loss_fn in loss_fns:
                 else:
                     prev_history = h
 
-                save_training(args["expcode"], file_name, final_state, metrics_history)
+                save_training("11", file_name, final_state, metrics_history)
             else:
                 final_state = load_training_state("11", file_name, state, arc_learnt_models_dir=on_arc)
 
