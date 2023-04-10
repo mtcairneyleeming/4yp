@@ -127,6 +127,12 @@ args.update(
     }
 )
 
+loss_fns = [combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(args["mmd_rbf_ls"]), 0.01, 1, 10)]
+if "loss_fns" in args[experiment]:
+    loss_fns = args[experiment]["loss_fns"]
+
+args["loss_fns"] = [l.__name__ for l in loss_fns]
+
 save_args("11", experiment, args)
 
 Arange = args[experiment]["Arange"]
@@ -141,11 +147,6 @@ print(f"Exp {experiment}, a={a}/{ar-1}, b={b}/{br-1}, index={index}/{ar*br-1} [i
 
 update_args_11(args, args[experiment], a, b)
 
-loss_fns = [combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(args["mmd_rbf_ls"]), 0.01, 1, 10)]
-if "loss_fns" in args[experiment]:
-    loss_fns = args[experiment]["loss_fns"]
-
-args["loss_fns"] = [l.__name__ for l in loss_fns]
 
 rng_key, rng_key_train, rng_key_test = random.split(args["rng_key"], 3)
 
