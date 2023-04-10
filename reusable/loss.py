@@ -7,7 +7,7 @@ import optax
 
 
 @jax.jit
-def RCL(y, reconstructed_y, mean, log_sd):
+def RCL(y, reconstructed_y, *args):
     """reconstruction loss, averaged over the datapoints (not summed)"""
     return jnp.mean(optax.l2_loss(reconstructed_y, y))  # 1/y.shape[0] *
 

@@ -11,7 +11,7 @@ def __get_savepath(exp_code, arc_data_dir=False, arc_learnt_models_dir=False):
     # work out where to save outputs:
     if arc_data_dir:
         return "data"
-    elif arc_learnt_models_dir: # e.g. for accessing pre-trained 
+    elif arc_learnt_models_dir:  # e.g. for accessing pre-trained
         dir = os.getenv("WORKING_DIR")
         save_path = f"{dir}/learnt_models"
     elif os.path.isdir("output"):  # running in an ARC job (using my submission script)
@@ -71,6 +71,14 @@ def get_decoder_params(state, decoder_name=None):
     except TypeError:
         p = state.params[decoder_name]
 
+    return freeze({"params": p})
+
+
+def get_model_params(state):
+    try:
+        p = state["params"]
+    except TypeError:
+        p = state.params
     return freeze({"params": p})
 
 

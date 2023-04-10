@@ -120,14 +120,25 @@ class Single_Decoder(nn.Module):
     hidden_dim2: int
     out_dim: int
 
+    leaky: bool = True
+    
+
     @nn.compact
     def __call__(self, input, **_):
         x, z = jnp.split(input, [self.out_dim], axis=-1)
+
         z = nn.Dense(self.hidden_dim1, kernel_init=nn.initializers.normal(), name="DEC Hidden1")(z)
-        z = nn.relu(z)
+        if self.leaky:
+            z = nn.leaky_relu(z)
+        else:
+            z = nn.relu(z)
         z = nn.Dense(self.hidden_dim2, kernel_init=nn.initializers.normal(), name="DEC Hidden2")(z)
-        z = nn.relu(z)
+        if self.leaky:
+            z = nn.leaky_relu(z)
+        else:
+            z = nn.relu(z)
         z = nn.Dense(self.out_dim, kernel_init=nn.initializers.normal(), name="DEC Recons")(z)
+
         return x, z
 
 
