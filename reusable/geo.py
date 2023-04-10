@@ -22,3 +22,11 @@ def load_state_centroids(st):
 
 def get_temp_data(st, year, aggr="year_max"):
     return pd.read_pickle(f"data/state_{st}_{year}_{aggr}.pkl")
+
+def centroids_to_coords(centroids):
+    x_coords = jnp.array(centroids.geometry.apply(lambda x: x.x))
+    y_coords = jnp.array(centroids.geometry.apply(lambda x: x.y))
+    x_coords = x_coords - jnp.mean(x_coords)
+    y_coords = y_coords - jnp.mean(y_coords)
+    return jnp.dstack((x_coords, y_coords))[0]
+

@@ -8,17 +8,28 @@ from numpyro.infer import NUTS, init_to_median, MCMC
 import time
 
 
-def vae_mcmc(hidden_dim1, hidden_dim2, latent_dim, out_dim, decoder_params, y=None, obs_idx=None):
-    z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
-    decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=out_dim)
+def vae_mcmc(
+    hidden_dim1,
+    hidden_dim2,
+    latent_dim,
+    decoder_params,
+    obs_idx=None,
+    noise=False,
+):
+    def func(x, var=None, y=None, **kwargs):
+        z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
 
-    f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z))
-    sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+        decoder_nn = VAE_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=x.shape[0])
 
-    if y is None:  # durinig prediction
-        numpyro.sample("y_pred", dist.Normal(f, sigma))
-    else:  # during inference
-        numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
+        f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z))
+        sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+
+        if y is None:  # during prediction
+            numpyro.sample("y_pred", dist.Normal(f, sigma))
+        else:  # during inference
+            numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
+
+    return func
 
 
 def cvae_mcmc(
@@ -91,7 +102,7 @@ def run_mcmc(
     verbose=False,
     thinning=1,
     condition_name="length",
-    group_by_chain=False
+    group_by_chain=False,
 ):
     start = time.time()
 
