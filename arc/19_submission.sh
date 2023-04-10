@@ -40,7 +40,7 @@ mkdir data
 cp -R $WORKING_DIR/reusable   	. # the code we've actually written
 cp -R $WORKING_DIR/plotting   	. # the code we've actually written
 cp -R $WORKING_DIR/$FILE_TO_RUN . # the code we've actually written
-cp -R $WORKING_DIR/data/19_* ./data
+cp -R $WORKING_DIR/data/state_* ./data
 
 echo "Environment variables:"
 printenv | grep ^SLURM_* # print all SLURM config (# of tasks, nodes, mem, gpus etc.)
