@@ -53,7 +53,7 @@ echo $SLURM_ARRAY_TASK_ID
 
 trap 'echo signal recieved in BATCH!; kill -15 "${PID}"; wait "${PID}";' SIGINT SIGTERM
 
-python ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID "$@" &
+python -u ./$FILE_TO_RUN $SLURM_ARRAY_TASK_ID "$@" &
 
 PID="$!"
 wait "${PID}"
