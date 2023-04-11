@@ -40,21 +40,24 @@ def align_right_backfill_with_gp(count, num_rows, num_cols):
 
 def calc_plot_dimensions(args, num_cols, num_rows, include_gp=False, extra_row_for_gp=False, include_standard_vae=False):
     # A = indexes over cols, B over rows - note flattening in code will
+
+    num_lfs = len(args["loss_fn_names"] if "loss_fn_names" in args else args["loss_fns"])
+
     if num_cols is None and num_rows is None:
         twoD = "Arange" in args and "Brange" in args
         num_cols = len(args["Arange"]) if twoD else 1
-        num_rows = len(args["Brange"]) if twoD else len(args["loss_fn_names"])
+        num_rows = len(args["Brange"]) if twoD else num_lfs
         
     else:
         twoD = True
         assert num_cols is not None and num_rows is not None
 
     # add an extra row if asked, or if it won't fit in the grid
-    if include_standard_vae and (num_cols * num_rows <= len(args["loss_fn_names"])):
+    if include_standard_vae and (num_cols * num_rows <= num_lfs):
         num_rows += 1
 
     # add an extra row if asked, or if it won't fit in the grid
-    if include_gp and (extra_row_for_gp or num_cols * num_rows <= len(args["loss_fn_names"])):
+    if include_gp and (extra_row_for_gp or num_cols * num_rows <= num_lfs):
         num_rows += 1
 
     return twoD, num_rows, num_cols
@@ -107,6 +110,9 @@ def pretty_loss_fn_name(loss_fn: str):
                     ls_s = str(int(ls)) if ls.is_integer() else f"{ls:.2f}"
                     ls_a = str(int(a)) if a.is_integer() else f"{a:.2f}"
                     after += f"{MMD_RQK_LATEX}({ls_s},{ls_a})"
+
+    if after == "":
+        return loss_fn
 
     return f"${after}$"
 

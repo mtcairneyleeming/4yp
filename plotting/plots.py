@@ -33,6 +33,11 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
 
     # -----------------------
     draws = draws[~jnp.isnan(draws).any(axis=1), :]
+
+    if draws.shape[0] == 0:
+        print(f"WARNING! all draws were NaN for title {title}, ylabel {ylabel}")
+        return ax
+    
     mean = jnp.nanmean(draws, axis=0)
     hpdi = numpyro.diagnostics.hpdi(draws, 0.9)
 
@@ -369,7 +374,7 @@ def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_re
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None, save_path=None):
+def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, upper_limit=None, fig=None, save_path=None):
     if fig is None:
         fig = plt.figure()
 
@@ -382,8 +387,10 @@ def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None
 
     current_cmap = plt.get_cmap()
     current_cmap.set_bad(color="red")
-
-    plotted = ax.matshow(masked_times, cmap=current_cmap)
+    if upper_limit is not None:
+        current_cmap.set_over("orange")
+    print(min(1.1*onp.max(masked_times), upper_limit), upper_limit,1.1*onp.max(masked_times) )
+    plotted = ax.matshow(masked_times, cmap=current_cmap, vmax=min(1.1*onp.max(masked_times), upper_limit))
 
     ax.xaxis.set_label_position("top")
     ax.set_title(title)
@@ -392,7 +399,7 @@ def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, fig=None
     ax.set_xticks(onp.arange(0, len(xticks)), xticks)
     ax.set_yticks(onp.arange(0, len(yticks)), yticks)
 
-    fig.colorbar(plotted, ax=ax)
+    fig.colorbar(plotted, ax=ax,  extend='max')
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")

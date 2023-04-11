@@ -78,6 +78,7 @@ def plot_trained_draws(
 
     if include_standard_vae:
         args["loss_fn_names"] = ["RCL+KLD"] + args["loss_fn_names"]
+        args["loss_fns"] = [None] + args["loss_fns"]
 
     twoD, num_rows, num_cols = calc_plot_dimensions(args, num_cols, num_rows, True, separate_gp, include_standard_vae)
     print(len(args["loss_fn_names"]), twoD, num_rows, num_cols)

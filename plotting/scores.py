@@ -4,6 +4,7 @@ from .tables import html_table, latex_table
 import pandas
 from .helpers import pretty_loss_fn_name
 
+
 def merge_dicts(a: dict, b: dict, expand=True):
     for key, val in b.items():
         if key in ["avg_gp_moments", "gp_moments"] and key in a:
@@ -93,59 +94,94 @@ def display_loss_scores(scores, out_file_code, file_name):
     latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in scores["loss_fns"]], name="Loss functions")
     html_row_index = pandas.Index(scores["loss_fns"], name="Loss functions")
 
+    extended_rows = ["GP"] + scores["loss_fns"]
+    extended_latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in extended_rows], name="Loss functions")
+    extended_html_row_index = pandas.Index(extended_rows, name="Loss functions")
+
     std_range = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     plots = [
         # save_name/data access, title, html col labels, latex col labels, colouring_data
-        ("frobenius", "Frobenius norms", std_range, std_range),
+        (
+            "frobenius",
+            "Frobenius norms",
+            std_range,
+            std_range,
+            html_row_index,
+            latex_row_index,
+        ),
         (
             "mmd",
             "MMD scores",
             scores["mmd_kernels"][0],
             [pretty_loss_fn_name(x) for x in scores["mmd_kernels"][0]],
+            html_row_index,
+            latex_row_index,
         ),
-        ("avg_vae_moments", "Sample moments (normal)", std_range, std_range),
+        ("avg_vae_moments", "Sample moments (normal)", std_range, std_range, html_row_index, latex_row_index),
         (
-            "avg_vae_moments",
+            (
+                jnp.concatenate((jnp.array(get_gp_moments())[None], scores["avg_vae_moments"]), axis=0)[0],
+                "avg_vae_moments_ranked",
+            ),
             "Sample moments (ranked_colour)",
             std_range,
             std_range,
-            jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(get_gp_moments())),
+            extended_html_row_index,
+            extended_latex_row_index,
+            jnp.concatenate((
+                jnp.full((1, len(std_range)), -1000000),
+                jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(get_gp_moments()))),
+                axis=0,
+            ),
+            1
         ),
     ]
 
-    for data_access, title, html_col_labels, latex_col_labels, *rest in plots:
+    for data_access, title, html_col_labels, latex_col_labels, html_rows, latex_rows, *rest in plots:
+
+        if isinstance(data_access, str):
+            data = scores[data_access]
+        else:
+            data = (data_access[0],)
+            data_access = data_access[1]
+
         latex_col_index = pandas.Index(latex_col_labels, name=title)
         html_col_index = pandas.Index(html_col_labels, name=title)
         colouring_data = rest[0] if len(rest) > 0 else None
+        vmin = rest[1] if len(rest) >1 else None
 
         latex_table(
-            scores[data_access],
-            latex_row_index,
+            data,
+            latex_rows,
             latex_col_index,
             f"./gen_plots/{out_file_code}/tables/{file_name}_{data_access}_rank_table.tex",
             colour_by_rank=True,
+            show_values=True,
             rotateColHeader=title == "MMD scores",
             colouring_data=colouring_data,
+            vmin=vmin
         )
 
         latex_table(
-            scores[data_access],
-            latex_row_index,
+            data,
+            latex_rows,
             latex_col_index,
             f"./gen_plots/{out_file_code}/tables/{file_name}_{data_access}_vals_table.tex",
             colour_by_rank=False,
+            show_values=True,
             rotateColHeader=title == "MMD scores",
             colouring_data=colouring_data,
+            vmin=vmin
         )
 
         html_table(
-            scores[data_access],
-            html_row_index,
+            data,
+            html_rows,
             html_col_index,
             show_values=True,
             colour_by_rank=True,
             rotateColHeader=title == "MMD scores",
             colouring_data=colouring_data,
+            vmin=vmin
         )
-
