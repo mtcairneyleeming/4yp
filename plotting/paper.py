@@ -1,131 +1,181 @@
+import jax.numpy as jnp
 import numpy as onp
-import re
-
-def align_right_backfill(count, num_rows, num_cols):
-    """Map count plots to a num_rows * num_cols grid, filling in from the bottom right """
-    assert(count <= num_cols * num_rows)
-    return lambda i: i + num_cols * num_rows - count
-
-
-def align_left_backfill(count, num_rows, num_cols):
-    """Map count plots to a num_rows * num_cols grid, filling in the bottom rows, and the top row from the left"""
-
-    assert(count <= num_cols * num_rows and count >= (num_rows-1) * num_cols)
-    g = align_right_backfill(count, num_rows, num_cols)
-
-    def func(i):
-        if i < num_cols and i < num_cols - (num_cols * num_rows - count):
-            return i
-        return g(i)
-
-    return func
-
-
-def align_right_backfill_with_gp(count, num_rows, num_cols):
-    """Map count plots to a num_rows * num_cols grid, filling in the bottom rows, placing the first plot in the top left, and the rest filling in from the right """
-    # assume count includes the gp
-    gap = num_cols * num_rows - count
-
-    assert(count <= num_cols * num_rows and count >= (num_rows-1) * num_cols)
-
-    def func(i):
-        if gap > 0 and i == 0:  # i.e. the GP
-            return 0
-
-        if i > 0:
-            return i + num_cols * num_rows - count
-
-    return func
+from reusable.util import (
+    load_args,
+    load_training_history,
+    gen_file_name,
+    get_decoder_params,
+    load_training_state,
+    get_model_params,
+)
+import matplotlib.pyplot as plt
+from plotting.plots import plot_training, plot_draws_hpdi
+import jax.random as random
+from reusable.vae import VAE, vae_sample, Single_Decoder, decoder_sample
+from reusable.train_nn import SimpleTrainState
+import optax
+from numpyro.infer import Predictive
+from reusable.gp import BuildGP
+import pandas
+from plotting.helpers import (
+    align_left_backfill,
+    align_right_backfill,
+    calc_plot_dimensions,
+    clear_unused_axs,
+    align_right_backfill_with_gp,
+    pretty_loss_fn_name,
+)
 
 
-def calc_plot_dimensions(args, num_cols, num_rows, include_gp=False, extra_row_for_gp=False, include_standard_vae=False):
-    # A = indexes over cols, B over rows - note flattening in code will
-    if num_cols is None and num_rows is None:
-        twoD = "Arange" in args and "Brange" in args
-        num_cols = len(args["Arange"]) if twoD else 1
-        num_rows = len(args["Brange"]) if twoD else len(args["loss_fn_names"])
-        
-    else:
-        twoD = True
-        assert num_cols is not None and num_rows is not None
+def plot_training_histories(code, exp_name, args_count, num_cols=None, num_rows=None, backfill=None):
+    args = load_args(str(code), args_count, exp_name)
 
-    # add an extra row if asked, or if it won't fit in the grid
-    if include_standard_vae and (num_cols * num_rows <= len(args["loss_fn_names"])):
-        num_rows += 1
+    twoD, num_rows, num_cols = calc_plot_dimensions(args, num_cols, num_rows, False, False)
 
-    # add an extra row if asked, or if it won't fit in the grid
-    if include_gp and (extra_row_for_gp or num_cols * num_rows <= len(args["loss_fn_names"])):
-        num_rows += 1
+    match backfill:
+        case None:
+            mapping = lambda i: i
+        case "align_left":
+            mapping = align_left_backfill(len(args["loss_fns"]), num_rows, num_cols)
+        case "align_right":
+            mapping = align_right_backfill(len(args["loss_fns"]), num_rows, num_cols)
 
-    return twoD, num_rows, num_cols
+    fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
 
+    clear_unused_axs(axs, mapping, twoD, len(args["loss_fn_names"]))
 
-def clear_unused_axs(axs, mapping, twoD, total):
-    if not twoD:
-        return
-    num_rows, num_cols = axs.shape
-    used_axes = [mapping(i) for i in range(total)]
-    for i in range(num_cols * num_rows):
-        if i not in used_axes:
-            axs[onp.unravel_index(i, (num_rows, num_cols))].remove()
+    for i, loss_fn in enumerate(args["loss_fn_names"]):
 
+        hist = load_training_history(code, gen_file_name(code, args, args["experiment"] + loss_fn))
+        plot_training(
+            hist["test_loss"],
+            hist["train_loss"],
+            pretty_loss_fn_name(loss_fn),
+            ax=axs[onp.unravel_index(mapping(i), (num_rows, num_cols)) if twoD else i],
+        )
 
-def pretty_loss_fn_name(loss_fn: str):
-    RCL_LATEX = r"\mathrm{RCL}"
-    KLD_LATEX = r"\mathrm{KLD}"
-    MMD_RBF_LATEX = r"\mathrm{MMD}_\mathrm{rbf}"
-    MMD_RQK_LATEX = r"\mathrm{MMD}_\mathrm{rq}"
-    parts = loss_fn.split("+")
-    after = ""
-    for i, part in enumerate(parts):
+    fig.tight_layout()
 
-        if i > 0:
-            after += "+"
-
-        split = re.split(r"([a-zA-Z\s]+)", part)
-        factor = split[0]
-        part = "".join(split[1:])
-        if factor != "":
-            after += factor
-
-        if part == "RCL":
-            after += RCL_LATEX
-        if part == "KLD":
-            after += KLD_LATEX
-        if part.startswith("mmd"):
-            mmd, lss = part.split("-", 1)
-            mult = lss.split(";")
-            for m in mult:
-                if mmd == "mmd_rbf_sum":
-                    m = float(m)
-                    s = str(int(m)) if m.is_integer() else f"{m:.2f}"
-                    after += f"{MMD_RBF_LATEX}({s})"
-                if mmd == "mmd_rqk_sum":
-                    ls, a = m.split(",", 1)
-                    ls = float(ls)
-                    a = float(a)
-                    ls_s = str(int(ls)) if ls.is_integer() else f"{ls:.2f}"
-                    ls_a = str(int(a)) if a.is_integer() else f"{a:.2f}"
-                    after += f"{MMD_RQK_LATEX}({ls_s},{ls_a})"
-
-    return f"${after}$"
+    fig.savefig(f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_training.pdf")
 
 
-def pretty_label(var_name: str):
+def plot_trained_draws(
+    code,
+    exp_name,
+    args_count,
+    num_cols=None,
+    num_rows=None,
+    backfill=None,
+    separate_gp=False,
+    include_standard_vae=False,
+    single_decoder=False,
+    leaky_relu=True,
+):
+    rng_key = random.PRNGKey(3)
+    rng_key, rng_key_gp = random.split(rng_key, 2)
 
-    if var_name == "n":
-        return "$n$"
+    args = load_args(str(code), str(args_count), exp_name)
 
-    if var_name == "train_num_batches":
-        return "training batches"
+    if include_standard_vae:
+        args["loss_fn_names"] = ["RCL+KLD"] + args["loss_fn_names"]
 
-    if var_name == "vae_scale_factor":
-        return "scaling of VAE layer size"
+    twoD, num_rows, num_cols = calc_plot_dimensions(args, num_cols, num_rows, True, separate_gp, include_standard_vae)
+    print(len(args["loss_fn_names"]), twoD, num_rows, num_cols)
 
-    if var_name == "num_epochs":
-        return "epochs"
-    
-    if var_name == "batch_size":
-        return "batch size"
+    match backfill:
+        case None:
+            if separate_gp:
+                mapping = lambda i: 0 if i == 0 else i - 1 + num_cols
+            else:
+                mapping = lambda i: i
+        case "align_left":
+            mapping = align_left_backfill(len(args["loss_fn_names"]) + 1, num_rows, num_cols)
+        case "align_right":
+            mapping = align_right_backfill_with_gp(len(args["loss_fn_names"]) + 1, num_rows, num_cols)
 
-    return var_name
+    fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
+
+    clear_unused_axs(axs, mapping, twoD, len(args["loss_fn_names"]) + 1)
+
+    gp = BuildGP(
+        args["gp_kernel"],
+        noise=False,
+        length_prior_choice=args["length_prior_choice"],
+        prior_args=args["length_prior_arguments"],
+    )
+
+    plot_gp_predictive = Predictive(gp, num_samples=5000)
+
+    gp_draws = plot_gp_predictive(rng_key_gp, x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5)["y"]
+    plot_draws_hpdi(
+        gp_draws,
+        args["x"],
+        f"GP draws",
+        "$y=f_{GP}(x)$",
+        "GP",
+        ax=axs[onp.unravel_index(mapping(0), (num_rows, num_cols)) if twoD else 0],
+    )
+
+    for i, loss_fn in enumerate(args["loss_fn_names"]):
+        rng_key, rng_key_init, rng_key_predict = random.split(rng_key, 3)
+
+        module = VAE(
+            hidden_dim1=args["hidden_dim1"],
+            hidden_dim2=args["hidden_dim2"],
+            latent_dim=args["latent_dim"],
+            out_dim=args["n"],
+            conditional=False,
+            leaky=leaky_relu,
+        )
+
+        if single_decoder:
+            single_decoder = Single_Decoder(
+                hidden_dim1=args["hidden_dim1"], hidden_dim2=args["hidden_dim2"], out_dim=args["n"], leaky=leaky_relu
+            )
+
+        params = module.init(rng_key, jnp.ones((args["n"],)))["params"]
+        tx = optax.adam(args["learning_rate"])
+        state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
+
+        if single_decoder:
+            params = single_decoder.init(rng_key, jnp.ones((args["n"] + args["latent_dim"],)))["params"]
+
+            dec_state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
+
+        if include_standard_vae and loss_fn == "RCL+KLD":
+            standard_args = load_args(16, 1, "exp1")
+            decoder_params = get_decoder_params(
+                load_training_state("16", gen_file_name("16", standard_args, "exp1" + loss_fn), state)
+            )
+        else:
+            if single_decoder:
+
+                decoder_params = get_model_params(
+                    load_training_state(code, gen_file_name(code, args, args["experiment"] + loss_fn), dec_state)
+                )
+            else:
+                decoder_params = get_decoder_params(
+                    load_training_state(code, gen_file_name(code, args, args["experiment"] + loss_fn), state)
+                )
+
+        vae_predictive = Predictive(decoder_sample if single_decoder else vae_sample, num_samples=5000)
+        vae_draws = vae_predictive(
+            rng_key_predict,
+            hidden_dim1=args["hidden_dim1"],
+            hidden_dim2=args["hidden_dim2"],
+            latent_dim=args["latent_dim"],
+            out_dim=args["n"],
+            decoder_params=decoder_params,
+        )["f"]
+        plot_draws_hpdi(
+            vae_draws,
+            args["x"],
+            pretty_loss_fn_name(loss_fn),
+            "$y=f_{DEC}(x)$" if single_decoder else "$y=f_{VAE}(x)$",
+            "PriorDec" if single_decoder else "PriorVAE",
+            ax=axs[onp.unravel_index(mapping(i + 1), (num_rows, num_cols)) if twoD else i + 1],
+        )
+
+    fig.tight_layout()
+
+    fig.savefig(f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_draws.pdf")
