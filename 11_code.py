@@ -255,39 +255,47 @@ for loss_fn in loss_fns:
         calc_scores(final_state, file_name, rng_key_scores)
 
     else:
-        prev_history = {}
-        iterate_list = Brange if args[experiment]["Bdesc"] == "num_epochs" else Arange
+        
+        iterating_on_B = args[experiment]["Bdesc"] == "num_epochs"
+        iterate_list = Brange if iterating_on_B else Arange
+
+        metrics_history = {}
+        num_epochs_so_far = 0
         final_state = state
 
-        for j, _ in enumerate(iterate_list):
-            new_index = j * ar + a            
+        print(iterating_on_B, iterate_list)
+
+        for j, num_epochs in enumerate(iterate_list):
+            new_index = j * ar + a if iterating_on_B else j* br + b 
+            b = new_index // ar
+            a = new_index % ar
+            
+            print(f"Exp {experiment}, NUM_EPOCHS ITERATION, new a={a}/{ar-1}, new b={b}/{br-1}, new index={new_index}/{ar*br-1} [indices 0-(n-1)]")
             args = update_args_11(args, args[experiment], a, b)  # set num_epochs correctly now!
             file_name = gen_file_name("11", args, f"11_{experiment}_{new_index}_{loss_fn.__name__}")
-            
             if not pre_trained:
-
-                next_range = iterate_list[j] - iterate_list[j - 1] if j > 0 else iterate_list[0]
-
-                final_state, h = run_training_shuffle(loss_fn, lambda *_: {}, next_range, train_draws, test_draws, final_state, random.fold_in(rng_key_train_shuffle, j))
+                final_state, h = run_training_shuffle(loss_fn, lambda *_: {}, num_epochs - num_epochs_so_far, train_draws, test_draws, final_state, random.fold_in(rng_key_train_shuffle, j))
 
                 if j > 0:
                     for metric, value in h.items():
                         if metric in ["interrupted", "final_epoch"]:
-                            prev_history[metric] = value
+                            metrics_history[metric] = value
                         elif metric in [
                             "epoch_times",
                             "batch_times",
                         ]:  # correct fact that we don't pass times back in to run_training
-                            prev_history[metric] = jnp.append(
-                                prev_history[metric], value + prev_history["epoch_times"][-1], axis=0
+                            metrics_history[metric] = jnp.append(
+                                metrics_history[metric], value + metrics_history["epoch_times"][-1], axis=0
                             )
                         else:
-                            prev_history[metric] = jnp.append(prev_history[metric], value, axis=0)
+                            metrics_history[metric] = jnp.append(metrics_history[metric], value, axis=0)
 
                 else:
-                    prev_history = h
+                    metrics_history = h
 
-                save_training("11", file_name, final_state, prev_history)
+                save_training("11", file_name, final_state, metrics_history)
+
+                num_epochs_so_far = num_epochs
             else:
                 final_state = load_training_state("11", file_name, state, arc_learnt_models_dir=on_arc)
 
