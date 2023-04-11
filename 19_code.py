@@ -76,8 +76,8 @@ args.update(
         "num_epochs": 50,
         "learning_rate": 1.0e-3,
         "batch_size": 400,
-        "train_num_batches": 500,
-        "test_num_batches": 200,
+        "train_num_batches": 200,
+        "test_num_batches": 20,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
         "scoring_num_draws": 10000,
@@ -89,6 +89,7 @@ args.update(
         "num_samples": 40000,
         "thinning": 1,
         "num_chains": 4,
+        "jitter_scaling": 1 / 300 * 4e-6,  # n times this gives the jitter
     }
 )
 
@@ -120,11 +121,23 @@ gp = BuildGP(
 if not using_gp and not pre_trained:
     if not pre_generated_data:
         train_draws = gen_gp_batches(
-            args["x"], gp, args["gp_kernel"], args["train_num_batches"], args["batch_size"], rng_key_train
+            args["x"],
+            gp,
+            args["gp_kernel"],
+            args["train_num_batches"],
+            args["batch_size"],
+            rng_key_train,
+            jitter=args["n"] * args["jitter_scaling"],
         )
 
         test_draws = gen_gp_batches(
-            args["x"], gp, args["gp_kernel"], 1, args["test_num_batches"] * args["batch_size"], rng_key_test
+            args["x"],
+            gp,
+            args["gp_kernel"],
+            1,
+            args["test_num_batches"] * args["batch_size"],
+            rng_key_test,
+            jitter=args["n"] * args["jitter_scaling"],
         )
         save_datasets(
             args["expcode"],
