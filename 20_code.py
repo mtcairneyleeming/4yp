@@ -153,7 +153,7 @@ if not pre_trained:
             gen_file_name(
                 args["expcode"],
                 args,
-                "raw_batches",
+                "raw_batched",
                 data_only=True,
             ),
             on_arc=on_arc,
