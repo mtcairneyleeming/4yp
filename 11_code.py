@@ -249,8 +249,11 @@ for loss_fn in loss_fns:
                 loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_train_shuffle
             )
             save_training("11", file_name, final_state, metrics_history)
+            del train_draws, test_draws
         else: 
             final_state = load_training_state("11", file_name, state, arc_learnt_models_dir=on_arc)
+
+
 
         calc_scores(final_state, file_name, rng_key_scores)
 
@@ -264,6 +267,8 @@ for loss_fn in loss_fns:
         final_state = state
 
         print(iterating_on_B, iterate_list)
+
+        final_states = []
 
         for j, num_epochs in enumerate(iterate_list):
             new_index = j * ar + a if iterating_on_B else j* br + b 
@@ -299,8 +304,14 @@ for loss_fn in loss_fns:
             else:
                 final_state = load_training_state("11", file_name, state, arc_learnt_models_dir=on_arc)
 
-            calc_scores(final_state, file_name, random.fold_in(rng_key_scores, j))
+            final_states.append((state, file_name))
 
             if "interrupted" in h:
                 print("SIGTERM sent, not iterating")
                 sys.exit(0)
+
+        del train_draws, test_draws
+
+        for j, (final_state, file_name) in final_states:
+            
+            calc_scores(final_state, file_name, random.fold_in(rng_key_scores, j))
