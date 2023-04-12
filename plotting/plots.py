@@ -350,12 +350,15 @@ def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
 
 
 def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_relative=False, ax=None, save_path=None):
+    x = onp.array(x)
     if ax is None:
         fig = plt.figure(figsize=(6, 4))
         ax = fig.add_subplot(111)
 
     for i, label in enumerate(curve_labels):
-        ax.plot(x, times[i], label=label)
+        data = times[i]
+        nans = onp.isnan(data)
+        ax.plot(x[~nans], (times[i])[~nans], label=label)
 
     ax.set_xlabel(x_label)
     ax.set_ylabel("time difference, minutes" if is_relative else "time, minutes")
@@ -374,23 +377,21 @@ def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_re
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_times_matrix(mat, mask, yticks, xticks, ylabel, xlabel, title, upper_limit=None, fig=None, save_path=None):
+def plot_times_matrix(mat, yticks, xticks, ylabel, xlabel, title, upper_limit=None, fig=None, save_path=None):
     if fig is None:
         fig = plt.figure()
 
     ax = fig.add_subplot()
 
-    mat = onp.array(mat)
-    mask = onp.array(mask)
-
-    masked_times = onp.ma.array(mat, mask=mask)
-
     current_cmap = plt.get_cmap()
     current_cmap.set_bad(color="red")
     if upper_limit is not None:
         current_cmap.set_over("orange")
-    print(min(1.1*onp.max(masked_times), upper_limit), upper_limit,1.1*onp.max(masked_times) )
-    plotted = ax.matshow(masked_times, cmap=current_cmap, vmax=min(1.1*onp.max(masked_times), upper_limit))
+    if upper_limit is not None:
+        vmax = min(1.1*onp.nanmax(mat), upper_limit)
+    else:
+        vmax = None
+    plotted = ax.matshow(mat, cmap=current_cmap, vmax=vmax)
 
     ax.xaxis.set_label_position("top")
     ax.set_title(title)
