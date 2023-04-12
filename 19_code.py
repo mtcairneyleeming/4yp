@@ -34,9 +34,9 @@ from reusable.geo import load_state_centroids, centroids_to_coords, get_temp_dat
 from reusable.mcmc import vae_mcmc, run_mcmc
 from reusable.scoring import calc_correlation_mats, calc_frob_norms, calc_mmd_scores, calc_moments
 
-pre_generated_data = len(sys.argv) >= 4 and sys.argv[3] == "load_generated"
+pre_generated_data = len(sys.argv) >= 3 and sys.argv[2] == "load_generated"
 
-pre_trained = len(sys.argv) >= 4 and sys.argv[3] == "pre_trained"
+pre_trained = len(sys.argv) >= 3 and sys.argv[2] == "pre_trained"
 
 on_arc = "SLURM_JOBID" in os.environ
 
