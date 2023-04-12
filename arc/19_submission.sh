@@ -8,7 +8,7 @@
 #SBATCH --array=0-2
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=max.cairneyleeming@lmh.ox.ac.uk
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 
 # taken from https://dhruveshp.com/blog/2021/signal-propagation-on-slurm/
 #SBATCH --signal=B:TERM@300 # tells the controller
