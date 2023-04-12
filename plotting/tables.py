@@ -80,7 +80,7 @@ def html_table(
         s.background_gradient(axis=None, cmap=cmap, gmap=colouring_data, vmin=vmin)
 
     if show_values:
-        s.format("{:.1e}")
+        pass #s.format("{:5.3f}")
     else:
         s.format(" ")
     if rotateColHeader:
