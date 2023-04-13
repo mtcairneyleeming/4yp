@@ -38,7 +38,7 @@ def MMD_rbf_sum(lss, mem_efficient=False):
 
     else:
 
-        @jax.jit
+        # @jax.jit
         def func(y, reconstructed_y, *args):
             return mmd_matrix_impl(
                 y, reconstructed_y, lambda x, z: sum([rbf_kernel(x, z, ls) for ls in lss]), normalise=True
@@ -96,7 +96,7 @@ def combo_loss(f, g, f_scale=1, g_scale=1):
 
 
 def combo3_loss(f, g, h, f_scale=1, g_scale=1, h_scale=1):
-    @jax.jit
+    # @jax.jit
     def func(*args):
         return f_scale * f(*args) + g_scale * g(*args) + h_scale * h(*args)
 

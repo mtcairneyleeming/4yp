@@ -35,7 +35,11 @@ def esq_kernel(x,  var, length, jitter=2e-5):
 
 
 def rbf_kernel(x, z, length):
-    return jnp.exp(-1 / length**2 * jnp.dot(x - z, x - z))
+    diff = x - z
+    print(f"diff {diff.nbytes}")
+    dot = jnp.dot(diff, diff)
+    print(f"dot {dot.nbytes}, {dot.shape}")
+    return jnp.exp(-1 / length**2 * dot)
 
 
 def rq_kernel(x, z, length, scale):

@@ -31,7 +31,7 @@ def mmd_mem_efficient(xs, ys, kernel_f, normalise=False):
     return  Kx_term + Ky_term- 2 * Kxy_term
 
 
-@partial(jax.jit, static_argnames=["kernel_f", "normalise"])
+# @partial(jax.jit, static_argnames=["kernel_f", "normalise"])
 def mmd_matrix_impl(xs, ys, kernel_f, normalise=False):
     """Matrix implementation: uses lots of memory, suitable for differentiation"""
 
