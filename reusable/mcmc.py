@@ -99,30 +99,56 @@ def run_mcmc(
     x,
     y_obs,
     condition=None,
+    condition_name="length",
     verbose=False,
     thinning=1,
-    condition_name="length",
     group_by_chain=False,
+    max_run_length=200
 ):
     start = time.time()
 
     init_strategy = init_to_median(num_samples=10)
     kernel = NUTS(model_mcmc, init_strategy=init_strategy)
+
+    if max_run_length == None:
+        warmup_per = num_warmup
+        samples_per = num_samples
+        warmup_runs = 1
+        sample_runs =1
+    else:
+        assert num_warmup % max_run_length ==0 and num_samples % max_run_length == 0, "Must be able to evenly divide the number of warmup and true samples by the run length"
+        warmup_per = max_run_length
+        samples_per = max_run_length
+        warmup_runs = num_warmup // max_run_length
+        sample_runs = num_samples // max_run_length
+
     mcmc = MCMC(
         kernel,
-        num_warmup=num_warmup,
-        num_samples=num_samples,
+        num_warmup=warmup_per,
+        num_samples=samples_per,
         num_chains=num_chains,
         thinning=thinning,
         jit_model_args=True,
         progress_bar=True,
     )
-    mcmc.run(
-        rng_key,
-        x,
-        y=y_obs,
-        **{condition_name: condition},
-    )
+
+    for i in range(warmup_runs):
+        mcmc.warmup(
+            rng_key,
+            x,
+            y=y_obs,
+            **{condition_name: condition},
+        )
+        print(f"Done MCMC warmup run {i}/{warmup_runs}",  flush=True)
+
+    for i in range(sample_runs):
+        mcmc.run(
+            rng_key,
+            x,
+            y=y_obs,
+            **{condition_name: condition},
+        )
+        print(f"Done MCMC run {i}/{sample_runs}",  flush=True)
     if verbose:
         mcmc.print_summary(exclude_deterministic=False)
 
