@@ -42,7 +42,7 @@ on_arc = "SLURM_JOBID" in os.environ
 
 index = int(sys.argv[1])
 
-print(f"Starting 16, index={index}", flush=True)
+print(f"Starting 16, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}", flush=True)
 setup_signals()
 
 
