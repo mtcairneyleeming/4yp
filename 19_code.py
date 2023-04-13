@@ -36,7 +36,7 @@ from reusable.scoring import calc_correlation_mats, calc_frob_norms, calc_mmd_sc
 
 pre_generated_data = len(sys.argv) > 2 and sys.argv[2] == "load_generated"
 
-pre_trained = len(sys.argv) >= 2 and sys.argv[2] == "pre_trained"
+pre_trained = len(sys.argv) > 2 and sys.argv[2] == "pre_trained"
 
 on_arc = "SLURM_JOBID" in os.environ
 
@@ -158,7 +158,7 @@ if not using_gp and not pre_trained:
             on_arc=on_arc,
         )
 
-    print("Generated data", flush=True)
+    print(f"Generated data, train size: {train_draws.nbytes}, test size: {test_draws.nbytes}", flush=True)
 
 file_name = gen_file_name(args["expcode"], args, "gp" if loss_fn is None else loss_fn.__name__)
 
