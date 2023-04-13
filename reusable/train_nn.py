@@ -168,11 +168,19 @@ def run_training_datastream(
             train_output = test_state.apply_fn({"params": test_state.params}, curr_training_data[-1], training=False)
             test_output = test_state.apply_fn({"params": test_state.params}, get_epoch_test_data(i), training=False)
 
+            y = test_output[0]
+            recons = test_output[1]
+            mean = test_output[2]
+            std = test_output[3]
+            print(y.nbytes, recons.nbytes, mean.nbytes, std.nbytes)
+            l = loss_fn(y, recons, mean, std)
+            print(l, l.nbytes)
+
             metrics = compute_epoch_metrics(test_state, train_output, test_output)
 
             metrics["train_loss"] = batch_losses[-1]
             metrics["train_avg_loss"] = jnp.mean(jnp.array(batch_losses))
-            metrics["test_loss"] = loss_fn(*test_output)
+            metrics["test_loss"] = l
             metrics["batch_times"] = jnp.array(batch_times)
             metrics["epoch_times"] = time.time() - start
 
