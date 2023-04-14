@@ -40,7 +40,7 @@ def gen_one_batch(x, gp_model, gp_kernel, batch_size, rng_key, draw_access="y", 
             draws = jnp.concatenate((draws, filtered), axis=0)
 
         curr = time.time()
-        print(f"Looped: gen {to_generate}/{batch_size - old_num_successes} , elapsed: {curr-start}, last batch in {curr-prev}", flush=True)
+        print(f"Looped: gen {to_generate -jnp.count_nonzero(nan_locs)}/{batch_size - old_num_successes} , elapsed: {curr-start}, last batch in {curr-prev}", flush=True)
         prev = curr
         if num_successes == batch_size:
             print(f"Used {all_generated}, total time = {curr - start}", flush=True)
