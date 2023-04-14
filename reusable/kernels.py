@@ -31,11 +31,8 @@ def esq_kernel(x, var, length, jitter=2e-5):
 def rbf_kernel(length):
     @jax.jit
     def func(x, z):
-        print(f"x: {x.shape}, {x.nbytes}, z: {z.shape}, {z.nbytes}, {length}")
         diff = x - z
-        print(f"diff {diff.nbytes}")
         dot = jnp.dot(diff, diff)
-        print(f"dot {dot.nbytes}, {dot.shape}")
         return jnp.exp(-1 / length**2 * dot)
 
     return func
