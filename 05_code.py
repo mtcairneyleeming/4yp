@@ -131,7 +131,7 @@ index = int(sys.argv[1])
 loss_fn = loss_fns[index]
 print(loss_fn.__name__, flush=True)
 final_state, metrics_history = run_training(
-    loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
+    loss_fn, None, args["num_epochs"], train_draws, test_draws, state
 )
 
 from reusable.util import gen_file_name, save_training, save_args

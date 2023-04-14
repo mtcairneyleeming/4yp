@@ -238,6 +238,8 @@ def calc_scores(final_state, file_name, rng_key):
     )
 
 
+final_states = []
+
 for loss_fn in loss_fns:
     file_name = gen_file_name("11", args, f"11_{experiment}_{index}_{loss_fn.__name__}")
  
@@ -246,16 +248,14 @@ for loss_fn in loss_fns:
 
         if not pre_trained:
             final_state, metrics_history = run_training_shuffle(
-                loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_train_shuffle
+                loss_fn, None, args["num_epochs"], train_draws, test_draws, state, rng_key_train_shuffle
             )
             save_training("11", file_name, final_state, metrics_history)
-            del train_draws, test_draws
+            
         else: 
             final_state = load_training_state("11", file_name, state, arc_learnt_models_dir=on_arc)
 
-
-
-        calc_scores(final_state, file_name, rng_key_scores)
+        final_states.append((final_state, file_name))
 
     else:
         
@@ -268,7 +268,6 @@ for loss_fn in loss_fns:
 
         print(iterating_on_B, iterate_list)
 
-        final_states = []
 
         for j, num_epochs in enumerate(iterate_list):
             new_index = j * ar + a if iterating_on_B else j* br + b 
@@ -279,7 +278,7 @@ for loss_fn in loss_fns:
             args = update_args_11(args, args[experiment], a, b)  # set num_epochs correctly now!
             file_name = gen_file_name("11", args, f"11_{experiment}_{new_index}_{loss_fn.__name__}")
             if not pre_trained:
-                final_state, h = run_training_shuffle(loss_fn, lambda *_: {}, num_epochs - num_epochs_so_far, train_draws, test_draws, final_state, random.fold_in(rng_key_train_shuffle, j))
+                final_state, h = run_training_shuffle(loss_fn, None, num_epochs - num_epochs_so_far, train_draws, test_draws, final_state, random.fold_in(rng_key_train_shuffle, j))
 
                 if j > 0:
                     for metric, value in h.items():
@@ -310,8 +309,8 @@ for loss_fn in loss_fns:
                 print("SIGTERM sent, not iterating")
                 sys.exit(0)
 
-        del train_draws, test_draws
+del train_draws, test_draws
 
-        for j, (final_state, file_name) in final_states:
-            
-            calc_scores(final_state, file_name, random.fold_in(rng_key_scores, j))
+for j, (final_state, file_name) in final_states:
+    
+    calc_scores(final_state, file_name, random.fold_in(rng_key_scores, j))

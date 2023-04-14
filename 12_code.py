@@ -104,7 +104,7 @@ print("Starting training", flush=True)
 name = loss_fns[index].__name__
 
 final_state, metrics_history = run_training(
-    loss_fns[index], lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
+    loss_fns[index], None, args["num_epochs"], train_draws, test_draws, state
 )
 
 save_training("12", gen_file_name("12", args, "standard"), final_state, metrics_history)
@@ -126,7 +126,7 @@ tx = optax.adam(args["learning_rate"])
 state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
 
 final_state, metrics_history = run_training_shuffle(
-    loss_fns[index], lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
+    loss_fns[index], None, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
 )
 
 save_training("12", gen_file_name("12", args, "shuffle"), final_state, metrics_history)

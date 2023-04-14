@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-import jax.debug 
+import jax
 
 def sq_euclidian_dist(x, z):
     """Euclidean distance between each point in x,z, suitable for JAX differentiation/etc. Liza's code"""
@@ -18,29 +18,59 @@ def sq_euclidian_dist(x, z):
     return delta
 
 
-def esq_kernel(x,  var, length, jitter=2e-5):
+def esq_kernel(x, var, length, jitter=2e-5):
     """For GPs only!!! as it returns a matrix"""
     dist = sq_euclidian_dist(x, x)
 
     deltaXsq = dist / (length**2)
     k = var * jnp.exp(-0.5 * deltaXsq)
-    #jax.debug.print("{c}", c=-jnp.linalg.eigh(k)[0][..., 0])
-    correction = 0 # the code below works, but runs very very slowly
-    # # due to numerical instability, the smallest eigenvalue may sometimes be <0 - 
-    # # thus we calculate the smallest eigenvalue, and if negative,
-    # # we subtract it from the diagonal. 
-    # correction = 2 * jnp.maximum(-jnp.linalg.eigh(k)[0][..., 0], 0)
-    k += (jitter +correction) * jnp.eye(x.shape[0])
+    k += jitter * jnp.eye(x.shape[0])
     return k
 
 
-def rbf_kernel(x, z, length):
-    diff = x - z
-    print(f"diff {diff.nbytes}")
-    dot = jnp.dot(diff, diff)
-    print(f"dot {dot.nbytes}, {dot.shape}")
-    return jnp.exp(-1 / length**2 * dot)
+def rbf_kernel(length):
+    @jax.jit
+    def func(x, z):
+        print(f"x: {x.shape}, {x.nbytes}, z: {z.shape}, {z.nbytes}, {length}")
+        diff = x - z
+        print(f"diff {diff.nbytes}")
+        dot = jnp.dot(diff, diff)
+        print(f"dot {dot.nbytes}, {dot.shape}")
+        return jnp.exp(-1 / length**2 * dot)
+
+    return func
 
 
-def rq_kernel(x, z, length, scale):
-    return jnp.power(1 + jnp.dot(x - z, x - z) / (2 * scale * length**2), -scale)
+def rbf_kernel_multi(lengths):
+    @jax.jit
+    def func(x, z):
+        
+        diff = x - z
+        dot = jnp.dot(diff, diff)
+        sum = 0
+        for length in lengths:
+            sum += jnp.exp(-1 / length**2 * dot)
+        return sum
+
+    return func
+
+
+def rq_kernel(length, scale):
+    @jax.jit
+    def func(x, z):
+        return jnp.power(1 + jnp.dot(x - z, x - z) / (2 * scale * length**2), -scale)
+
+    return func
+
+def rq_kernel_multi(lengths, scales):
+    @jax.jit
+    def func(x, z):
+        diff = x - z
+        dot = jnp.dot(diff, diff)
+        sum = 0
+        for length, scale in zip(lengths, scales):
+            sum += jnp.power(1 + dot / (2 * scale * length**2), -scale)
+        return sum 
+
+    return func
+

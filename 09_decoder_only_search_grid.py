@@ -123,7 +123,7 @@ loss_fn = MMD_rqk(args["l_range"][l], args["a_range"][a])
 
 print(loss_fn.__name__, flush=True)
 final_state, metrics_history = run_training(
-    loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state
+    loss_fn, None, args["num_epochs"], train_draws, test_draws, state
 )
 
 from reusable.util import gen_file_name, save_training, save_args

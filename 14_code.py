@@ -170,7 +170,7 @@ if not use_gp:
 
     state, metrics_history = run_training_shuffle(
         conditional_loss_wrapper(combo_loss(RCL, KLD)),
-        lambda *_: {},
+        None,
         args["num_epochs"],
         train_draws,
         test_draws,

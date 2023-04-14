@@ -20,69 +20,39 @@ def KLD(y, reconstructed_y, mean, log_sd):
 
 
 from reusable.mmd import mmd_matrix_impl, mmd_mem_efficient
-from reusable.kernels import rbf_kernel, rq_kernel
+from reusable.kernels import rbf_kernel, rq_kernel, rbf_kernel_multi, rq_kernel_multi
 
 
 def MMD_rbf(ls, mem_efficient=False):
-    return MMD_rbf_sum([ls], mem_efficient=mem_efficient)
+    k = rbf_kernel(ls)
+    func = mmd_mem_efficient(k) if mem_efficient else mmd_matrix_impl(k)
+
+    func.__name__ = f"mmd_rbf_sum-{ls}"
+    return func
 
 
 def MMD_rbf_sum(lss, mem_efficient=False):
-    if mem_efficient:
+    k = rbf_kernel_multi(lss)
+    func = mmd_mem_efficient(k) if mem_efficient else mmd_matrix_impl(k)
 
-        @jax.jit
-        def func(y, reconstructed_y, *args):
-            return mmd_mem_efficient(
-                y, reconstructed_y, lambda x, z: sum([rbf_kernel(x, z, ls) for ls in lss]), normalise=True
-            )
-
-    else:
-
-        # @jax.jit
-        def func(y, reconstructed_y, *args):
-            return mmd_matrix_impl(
-                y, reconstructed_y, lambda x, z: sum([rbf_kernel(x, z, ls) for ls in lss]), normalise=True
-            )
-
-    func.__name__ = f"mmd_rbf_sum-" + ";".join([str(l) for l in lss])
+    func.__name__ = f"mmd_rbf_sum-" + ";".join([f"{str(l)}" for l in lss])
     return func
 
 
 def MMD_rqk(ls, scale, mem_efficient=False):
-    return MMD_rqk_sum([ls], [scale], mem_efficient=mem_efficient)
+    k = rq_kernel(ls, scale)
+    func = mmd_mem_efficient(k) if mem_efficient else mmd_matrix_impl(k)
 
-
-def MMD_rqk_sum(lss, scales, mem_efficient=False):
-
-    if mem_efficient:
-
-        @jax.jit
-        def func(y, reconstructed_y, *args):
-            return mmd_mem_efficient(
-                y,
-                reconstructed_y,
-                lambda x, z: sum([rq_kernel(x, z, ls, scale) for ls, scale in zip(lss, scales)]),
-                normalise=True,
-            )
-
-    else:
-
-        @jax.jit
-        def func(y, reconstructed_y, *args):
-            return mmd_matrix_impl(
-                y,
-                reconstructed_y,
-                lambda x, z: sum([rq_kernel(x, z, ls, scale) for ls, scale in zip(lss, scales)]),
-                normalise=True,
-            )
-
-    func.__name__ = f"mmd_rqk_sum-" + ";".join([f"{str(l)},{str(s)}" for l, s in zip(lss, scales)])
+    func.__name__ = f"mmd_rqk_sum-{ls},{scale}"
     return func
 
 
-@jax.jit
-def MMD_rbf_ls_01_025_05_1_2_4_16_32(y, reconstructed_y, mem_efficient=False):
-    return MMD_rbf_sum([0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 16.0, 32.0], mem_efficient=mem_efficient)
+def MMD_rqk_sum(lss, scales, mem_efficient=False):
+    k = rq_kernel_multi(lss, scales)
+    func = mmd_mem_efficient(k) if mem_efficient else mmd_matrix_impl(k)
+
+    func.__name__ = f"mmd_rqk_sum-" + ";".join([f"{str(l)},{str(s)}" for l, s in zip(lss, scales)])
+    return func
 
 
 def combo_loss(f, g, f_scale=1, g_scale=1):
@@ -96,7 +66,7 @@ def combo_loss(f, g, f_scale=1, g_scale=1):
 
 
 def combo3_loss(f, g, h, f_scale=1, g_scale=1, h_scale=1):
-    # @jax.jit
+    @jax.jit
     def func(*args):
         return f_scale * f(*args) + g_scale * g(*args) + h_scale * h(*args)
 

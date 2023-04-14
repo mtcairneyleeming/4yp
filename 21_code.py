@@ -15,7 +15,7 @@ numpyro.set_host_device_count(4)
 from reusable.data import gen_gp_batches
 from reusable.gp import BuildGP
 from reusable.kernels import esq_kernel
-from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
+from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD, MMD_rqk
 from reusable.train_nn import SimpleTrainState, run_training_shuffle
 from reusable.util import (
     save_args,
@@ -30,7 +30,6 @@ from reusable.util import (
     save_samples,
 )
 from reusable.vae import VAE, vae_sample
-from reusable.geo import load_state_centroids, centroids_to_coords, get_temp_data
 from reusable.mcmc import vae_mcmc, run_mcmc
 from reusable.scoring import calc_correlation_mats, calc_frob_norms, calc_mmd_scores, calc_moments
 
@@ -45,28 +44,15 @@ index = int(sys.argv[1])
 print(f"Starting 16, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}", flush=True)
 setup_signals()
 
-
 args = {
-    # geographic data
-    "state": 36,  # New York
-    # ground truth
-    "year": 2010,
-    "aggr_method": "year_max",
     # GP prior configuration
+    "n": 100,
     "gp_kernel": esq_kernel,
     "rng_key": random.PRNGKey(2),
 }
-
-state_centroids = load_state_centroids(args["state"])
-
-ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
-
-coords = centroids_to_coords(state_centroids)
-
 args.update(
     {  # so we can use the definition of n to define x
-        "x": coords,
-        "n": coords.shape[0],
+        "x": jnp.arange(0, 1, 1 / args["n"]),
         # VAE configuration
         "hidden_dim1": 150,
         "hidden_dim2": 150,
@@ -194,7 +180,6 @@ if not using_gp:
         final_state = load_training_state(args["expcode"], file_name, state, arc_learnt_models_dir=on_arc)
 
     args["decoder_params"] = get_decoder_params(final_state)
-
 
 
 rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)

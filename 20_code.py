@@ -180,7 +180,7 @@ if not pre_trained:
     print("Starting training", flush=True)
 
     final_state, metrics_history = run_training_shuffle(
-        loss_fn, lambda *_: {}, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
+        loss_fn, None, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
     )
 
     save_training(args["expcode"], file_name, final_state, metrics_history)
