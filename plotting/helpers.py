@@ -98,10 +98,13 @@ def pretty_loss_fn_name(loss_fn: str):
         if part.startswith("mmd"):
             mmd, lss = part.split("-", 1)
             mult = lss.split(";")
-            for m in mult:
+            
+            for i, m in enumerate(mult):
                 if mmd == "mmd_rbf_sum":
                     m = float(m)
                     s = str(int(m)) if m.is_integer() else f"{m:.2f}"
+                    if i != 0:
+                        after += "+"
                     after += f"{MMD_RBF_LATEX}({s})"
                 if mmd == "mmd_rqk_sum":
                     ls, a = m.split(",", 1)
@@ -109,6 +112,8 @@ def pretty_loss_fn_name(loss_fn: str):
                     a = float(a)
                     ls_s = str(int(ls)) if ls.is_integer() else f"{ls:.2f}"
                     ls_a = str(int(a)) if a.is_integer() else f"{a:.2f}"
+                    if i != 0:
+                        after += "+"
                     after += f"{MMD_RQK_LATEX}({ls_s},{ls_a})"
 
     if after == "":
