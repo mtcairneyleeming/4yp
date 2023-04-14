@@ -157,8 +157,7 @@ if not using_gp and not pre_trained:
             ),
             on_arc=on_arc,
         )
-
-    print(f"Generated data, train size: {train_draws.nbytes}, test size: {test_draws.nbytes}", flush=True)
+    print(f"Got data, train: {train_draws.shape}, size {train_draws.nbytes}, test: {test_draws.shape}, size {test_draws.nbytes}", flush=True)
 
 file_name = gen_file_name(args["expcode"], args, "gp" if loss_fn is None else loss_fn.__name__)
 
