@@ -74,6 +74,9 @@ def html_table(
     cmap.set_under(color="white")
 
     s = df.style
+
+    s.highlight_min(axis=0,  props='font-weight:bold;')
+
     if colour_by_rank:
         s.background_gradient(axis=None, cmap=cmap, gmap=ranks, vmin=vmin)
     else:
