@@ -1,8 +1,21 @@
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
+import numpy as onp
 
 from reusable.geo import load_state_boundaries
+
+
+class StateLoader(object):
+    states = {}
+
+    def load_state_boundaries(self, state: int):
+        if state not in self.states:
+            self.states[state] = load_state_boundaries(state)
+        return self.states[state]
+    
+
+loader = StateLoader()
 
 
 def plot_on_state(data, state, title, legend_title, ax=None, vmin=None, vmax=None, show_colorbar=True):
@@ -15,9 +28,11 @@ def plot_on_state(data, state, title, legend_title, ax=None, vmin=None, vmax=Non
     if title is not None:
         ax.set_title(title)
     
-    geom = load_state_boundaries(state)["geometry"]
+    geom = loader.load_state_boundaries(state)["geometry"]
     newframe = gpd.GeoDataFrame({"d": data}, geometry=geom)
-    newframe.plot("d", ax=ax , vmin=vmin, vmax=vmax)
+    cmap = plt.get_cmap()
+    cmap.set_bad(color="red")
+    newframe.plot("d", ax=ax , vmin=vmin, vmax=vmax, cmap=cmap)
 
     if ax_was_none and show_colorbar:
         fig.colorbar(fig.gca().get_children()[0], ax=ax, label=legend_title)
@@ -45,3 +60,7 @@ def plot_multi_on_state(datas, state, suptitle, legend_title, titles=None, fig=N
     fig.suptitle(suptitle, fontsize=20)
 
     
+def mask_for_plotting(data, visible_indices):
+    out = onp.full_like(data, onp.nan)
+    out[visible_indices] = data[visible_indices]
+    return out

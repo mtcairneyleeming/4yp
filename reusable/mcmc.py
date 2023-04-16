@@ -23,7 +23,6 @@ def vae_mcmc(
 
         f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, z))
         sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
-
         if y is None:  # during prediction
             numpyro.sample("y_pred", dist.Normal(f, sigma))
         else:  # during inference
@@ -96,10 +95,7 @@ def run_mcmc(
     num_chains,
     rng_key,
     model_mcmc,
-    x,
-    y_obs,
-    condition=None,
-    condition_name="length",
+    mcmc_arguments,
     verbose=False,
     thinning=1,
     group_by_chain=False,
@@ -135,20 +131,16 @@ def run_mcmc(
     for i in range(warmup_runs):
         mcmc.warmup(
             rng_key,
-            x,
-            y=y_obs,
-            **{condition_name: condition},
+            **mcmc_arguments
         )
-        print(f"Done MCMC warmup run {i}/{warmup_runs}",  flush=True)
+        print(f"Done MCMC warmup run {i+1}/{warmup_runs}",  flush=True)
 
     for i in range(sample_runs):
         mcmc.run(
             rng_key,
-            x,
-            y=y_obs,
-            **{condition_name: condition},
+            **mcmc_arguments
         )
-        print(f"Done MCMC run {i}/{sample_runs}",  flush=True)
+        print(f"Done MCMC run {i+1}/{sample_runs}",  flush=True)
     if verbose:
         mcmc.print_summary(exclude_deterministic=False)
 

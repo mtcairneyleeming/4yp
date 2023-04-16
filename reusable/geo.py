@@ -16,6 +16,8 @@ def state_name(st):
 def load_state_boundaries(st):
     return gpd.read_file(f"data/state_{st}_boundaries.geojson")
 
+
+# note this is sorted by ZCTA 
 def load_state_centroids(st):
     return gpd.read_file(f"data/state_{st}_centroids.geojson")
     

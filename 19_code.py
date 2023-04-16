@@ -61,6 +61,30 @@ state_centroids = load_state_centroids(args["state"])
 
 ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
 
+args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
+
+rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
+
+
+num_obs = int(args["n"] * 0.5)
+print(args["n"], num_obs)
+
+obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"]-num_obs), False)))
+print(obs_mask.shape, obs_mask)
+obs_mask = random.permutation(rng_key_ground_truth_obs_mask, obs_mask)
+print(obs_mask)
+
+args["obs_idx"] = [x for x in range(args["n"]) if obs_mask[x]==True]
+
+args["obs_idx"] = jnp.array(args["obs_idx"])
+
+print(obs_mask.sum())
+
+args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
+x_obs = jnp.arange(0, args["n"])[args["obs_idx"]]
+
+
+
 coords = centroids_to_coords(state_centroids)
 
 args.update(
@@ -80,10 +104,10 @@ args.update(
         "test_num_batches": 2,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
-        "scoring_num_draws": 10000,
+        "scoring_num_draws": 1000,
         "expcode": "19",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
-        "ground_truth": ground_truth_df["tmean"].to_numpy(),
+        
         # MCMC parameters
         "num_warmup": 1000,
         "num_samples": 40000,
@@ -157,7 +181,10 @@ if not using_gp and not pre_trained:
             ),
             on_arc=on_arc,
         )
-    print(f"Got data, train: {train_draws.shape}, size {train_draws.nbytes}, test: {test_draws.shape}, size {test_draws.nbytes}", flush=True)
+    print(
+        f"Got data, train: {train_draws.shape}, size {train_draws.nbytes}, test: {test_draws.shape}, size {test_draws.nbytes}",
+        flush=True,
+    )
 
 file_name = gen_file_name(args["expcode"], args, "gp" if loss_fn is None else loss_fn.__name__)
 
@@ -193,7 +220,6 @@ if not using_gp:
         final_state = load_training_state(args["expcode"], file_name, state, arc_learnt_models_dir=on_arc)
 
     args["decoder_params"] = get_decoder_params(final_state)
-
 
 
 rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)
@@ -258,14 +284,16 @@ label = "gp" if using_gp else f"{loss_fn}"
 
 rng_key, rng_key_mcmc = random.split(rng_key, 2)
 
+
+
+
 mcmc_samples = run_mcmc(
     args["num_warmup"],
     args["num_samples"],
     args["num_chains"],
     rng_key_mcmc,
     f,
-    args["x"],
-    args["ground_truth"],
+    {"x": args["x"], "y": args["ground_truth_y_obs"]},
     verbose=True,
 )
 save_samples(
