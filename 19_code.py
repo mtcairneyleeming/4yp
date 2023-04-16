@@ -266,6 +266,7 @@ f = (
         noise=True,
         length_prior_choice=args["length_prior_choice"],
         prior_args=args["length_prior_arguments"],
+        obs_idx=args["obs_idx"]
     )
     if using_gp
     else vae_mcmc(
@@ -273,7 +274,7 @@ f = (
         args["hidden_dim2"],
         args["latent_dim"],
         args["decoder_params"],
-        obs_idx=None,
+        obs_idx=args["obs_idx"],
         noise=True,
     )
 )
@@ -294,6 +295,7 @@ mcmc_samples = run_mcmc(
     f,
     {"x": args["x"], "y": args["ground_truth_y_obs"]},
     verbose=True,
+    max_run_length=None if not using_gp else 100
 )
 save_samples(
     args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_mcmc", include_mcmc=True), mcmc_samples
