@@ -65,9 +65,9 @@ args.update(
         "x": coords,
         "n": coords.shape[0],
         # VAE configuration
-        "hidden_dim1": 150,
-        "hidden_dim2": 150,
-        "latent_dim": 100,
+        "hidden_dim1": 300,
+        "hidden_dim2": 300,
+        "latent_dim": 300,
         "vae_var": 0.1,
         # learning
         "num_epochs": 25,
@@ -77,7 +77,7 @@ args.update(
         "test_num_batches": 2,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
-        "scoring_num_draws": 1000,
+        "scoring_num_draws": 2000,
         "expcode": "19",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
         
@@ -279,7 +279,7 @@ f = (
     )
 )
 
-label = "gp" if using_gp else f"{loss_fn}"
+label = "gp" if using_gp else f"{loss_fn.__name__}"
 
 
 rng_key, rng_key_mcmc = random.split(rng_key, 2)
