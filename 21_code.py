@@ -1,5 +1,5 @@
 """
-Run PriorVAE with a couple of loss functions on the NY data
+Try the synthetic data example
 """
 import os
 import sys
@@ -13,9 +13,9 @@ import numpyro
 numpyro.set_host_device_count(4)
 
 from reusable.data import gen_gp_batches
-from reusable.gp import BuildGP
+from reusable.gp import BuildGP_Binomial
 from reusable.kernels import esq_kernel
-from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD, MMD_rqk
+from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
 from reusable.train_nn import SimpleTrainState, run_training_shuffle
 from reusable.util import (
     save_args,
@@ -63,19 +63,20 @@ args.update(
         "learning_rate": 1.0e-3,
         "batch_size": 400,
         "train_num_batches": 200,
-        "test_num_batches": 20,
+        "test_num_batches": 2,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
         "scoring_num_draws": 10000,
-        "expcode": "19",
+        "expcode": "21",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
-        "ground_truth": ground_truth_df["tmean"].to_numpy(),
         # MCMC parameters
         "num_warmup": 1000,
         "num_samples": 40000,
         "thinning": 1,
         "num_chains": 4,
         "jitter_scaling": 1 / 300 * 4e-6,  # n times this gives the jitter
+
+        "binomial_N": 1000
     }
 )
 
@@ -91,12 +92,13 @@ loss_fn = args["loss_fns"][index]
 
 using_gp = loss_fn is None
 
-rng_key, _ = random.split(random.PRNGKey(4))
+rng_key = args["rng_key"]
 
 
 rng_key, rng_key_train, rng_key_test = random.split(rng_key, 3)
 
-gp = BuildGP(
+gp = BuildGP_Binomial(
+    args["binomial_N"],
     args["gp_kernel"],
     noise=False,
     length_prior_choice=args["length_prior_choice"],
@@ -222,7 +224,8 @@ if not using_gp:
 
 
 f = (
-    BuildGP(
+    BuildGP_Binomial(
+        args["binomial_N"],
         args["gp_kernel"],
         noise=True,
         length_prior_choice=args["length_prior_choice"],

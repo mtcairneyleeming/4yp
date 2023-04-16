@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-
+import jax.scipy
 
 import numpyro
 import numpyro.distributions as dist
@@ -133,3 +133,85 @@ def OneDGP_UnifLS(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, nois
 
     y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
     return y
+
+
+def BuildGP_Binomial(
+    N, gp_kernel, jitter=2e-5, obs_idx=None, noise=False, length_prior_choice="invgamma", prior_args={}
+):
+    prior = setup_prior(length_prior_choice, prior_args)
+
+    # -1.3418452 0.21973312
+    def func(x, var=None, length=None, y=None, **kwargs):
+        """The original, basic GP, with the length sampled from a fixed prior"""
+        if length == None:
+            length = numpyro.sample("kernel_length", prior)
+
+        if var == None:
+            var = numpyro.sample("kernel_var", dist.LogNormal(0.0, 0.1))
+
+        k = gp_kernel(x, var, length, jitter)
+
+        length = jnp.array(length).reshape(1)
+
+        # the gp
+        f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k))
+
+        probs = numpyro.deterministic("p", jnp.exp(f) / (1 + jnp.exp(f)))
+
+        if noise == False:
+            y = numpyro.sample("y", dist.Binomial(N, probs=probs), obs=y)
+        else:
+            sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+            g = numpyro.sample("g", dist.Binomial(N, probs=probs))
+
+            if obs_idx is not None:  # in this case y will be lower dimension, and observed - unsurprisingly!
+                y = numpyro.sample("y", dist.Normal(g[obs_idx], sigma), obs=y)
+            else:
+                y = numpyro.sample("y", dist.Normal(g, sigma), obs=y)
+
+        # y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
+
+        return y
+
+    return func
+
+
+def BuildGP_Weibull(
+    scale, gp_kernel, jitter=2e-5, obs_idx=None, noise=False, length_prior_choice="invgamma", prior_args={}
+):
+    prior = setup_prior(length_prior_choice, prior_args)
+
+    # -1.3418452 0.21973312
+    def func(x, var=None, length=None, y=None, **kwargs):
+        """The original, basic GP, with the length sampled from a fixed prior"""
+        if length == None:
+            length = numpyro.sample("kernel_length", prior)
+
+        if var == None:
+            var = numpyro.sample("kernel_var", dist.LogNormal(0.0, 0.1))
+
+        k = gp_kernel(x, var, length, jitter)
+
+        length = jnp.array(length).reshape(1)
+
+        # the gp
+        f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k))
+
+        link = jax.scipy.special.expit(f)
+
+        if noise == False:
+            y = numpyro.sample("y", dist.Weibull(jnp.repeat(scale, f.shape[0]), link), obs=y)
+        else:
+            sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+            g = numpyro.sample("g", dist.Weibull(1, link))
+
+            if obs_idx is not None:  # in this case y will be lower dimension, and observed - unsurprisingly!
+                y = numpyro.sample("y", dist.Normal(g[obs_idx], sigma), obs=y)
+            else:
+                y = numpyro.sample("y", dist.Normal(g, sigma), obs=y)
+
+        # y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
+
+        return y
+
+    return func
