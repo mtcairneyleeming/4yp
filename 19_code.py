@@ -73,11 +73,11 @@ args.update(
         "latent_dim": 100,
         "vae_var": 0.1,
         # learning
-        "num_epochs": 50,
+        "num_epochs": 25,
         "learning_rate": 1.0e-3,
         "batch_size": 400,
         "train_num_batches": 200,
-        "test_num_batches": 20,
+        "test_num_batches": 2,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
         "scoring_num_draws": 10000,
