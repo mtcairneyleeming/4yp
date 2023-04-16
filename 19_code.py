@@ -58,33 +58,6 @@ args = {
 }
 
 state_centroids = load_state_centroids(args["state"])
-
-ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
-
-args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
-
-rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
-
-
-num_obs = int(args["n"] * 0.5)
-print(args["n"], num_obs)
-
-obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"]-num_obs), False)))
-print(obs_mask.shape, obs_mask)
-obs_mask = random.permutation(rng_key_ground_truth_obs_mask, obs_mask)
-print(obs_mask)
-
-args["obs_idx"] = [x for x in range(args["n"]) if obs_mask[x]==True]
-
-args["obs_idx"] = jnp.array(args["obs_idx"])
-
-print(obs_mask.sum())
-
-args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
-x_obs = jnp.arange(0, args["n"])[args["obs_idx"]]
-
-
-
 coords = centroids_to_coords(state_centroids)
 
 args.update(
@@ -116,6 +89,32 @@ args.update(
         "jitter_scaling": 1 / 300 * 4e-6,  # n times this gives the jitter
     }
 )
+
+
+ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
+
+args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
+
+rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
+
+
+num_obs = int(args["n"] * 0.5)
+print(args["n"], num_obs)
+
+obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"]-num_obs), False)))
+print(obs_mask.shape, obs_mask)
+obs_mask = random.permutation(rng_key_ground_truth_obs_mask, obs_mask)
+print(obs_mask)
+
+args["obs_idx"] = [x for x in range(args["n"]) if obs_mask[x]==True]
+
+args["obs_idx"] = jnp.array(args["obs_idx"])
+
+print(obs_mask.sum())
+
+args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
+x_obs = jnp.arange(0, args["n"])[args["obs_idx"]]
+
 
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
