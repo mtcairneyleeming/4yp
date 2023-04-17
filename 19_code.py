@@ -65,12 +65,11 @@ args.update(
         "x": coords,
         "n": coords.shape[0],
         # VAE configuration
-        "hidden_dim1": 300,
-        "hidden_dim2": 300,
-        "latent_dim": 300,
-        "vae_var": 0.1,
+        "hidden_dim1": 630, # 0.35 * n 
+        "hidden_dim2": 575,
+        "latent_dim": 540,
         # learning
-        "num_epochs": 25,
+        "num_epochs": 50,
         "learning_rate": 1.0e-3,
         "batch_size": 400,
         "train_num_batches": 200,
