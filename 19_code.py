@@ -82,8 +82,8 @@ args.update(
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
         
         # MCMC parameters
-        "num_warmup": 1000,
-        "num_samples": 40000,
+        "num_warmup": 20000,
+        "num_samples": 20000,
         "thinning": 1,
         "num_chains": 4,
         "jitter_scaling": 1 / 300 * 4e-6,  # n times this gives the jitter
