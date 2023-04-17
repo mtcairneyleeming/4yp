@@ -311,6 +311,6 @@ for loss_fn in loss_fns:
 
 del train_draws, test_draws
 
-for j, (final_state, file_name) in final_states:
+for j, (final_state, file_name) in enumerate(final_states):
     
     calc_scores(final_state, file_name, random.fold_in(rng_key_scores, j))
