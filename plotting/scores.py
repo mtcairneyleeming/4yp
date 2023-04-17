@@ -91,12 +91,12 @@ def display_loss_scores(scores, out_file_code, file_name):
 
     # scores["avg_vae_moments"] = jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(get_gp_moments()))
 
-    latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in scores["loss_fns"]], name="Loss functions")
-    html_row_index = pandas.Index(scores["loss_fns"], name="Loss functions")
+    latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in scores["loss_fns"]])
+    html_row_index = pandas.Index(scores["loss_fns"])
 
     extended_rows = ["GP"] + scores["loss_fns"]
-    extended_latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in extended_rows], name="Loss functions")
-    extended_html_row_index = pandas.Index(extended_rows, name="Loss functions")
+    extended_latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in extended_rows])
+    extended_html_row_index = pandas.Index(extended_rows)
 
     std_range = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -104,10 +104,10 @@ def display_loss_scores(scores, out_file_code, file_name):
     plots = [
         # save_name/data access, title, html col labels, latex col labels, colouring_data
         (
-            "frobenius",
-            "Frobenius norms",
-            std_range,
-            std_range,
+            (scores["frobenius"][:, :4],"frobenius"),
+            "$p$",
+            [1,2,3,4],
+            [1,2,3,4],
             html_row_index,
             latex_row_index,
         ),
@@ -119,13 +119,21 @@ def display_loss_scores(scores, out_file_code, file_name):
             html_row_index,
             latex_row_index,
         ),
-        ("avg_moment_differences", "Sample moments difference", std_range, std_range, html_row_index, latex_row_index),
+        (
+            (jnp.mean(scores["mmd"], axis=1).reshape((len(html_row_index), 1)),"mmd_avg"),
+            "",
+            ["Average MMD score"],
+            ["Average MMD score"],
+            html_row_index,
+            latex_row_index,
+        ),
+        ("avg_moment_differences", "$p$", std_range, std_range, html_row_index, latex_row_index),
         (
             (
                 jnp.concatenate((jnp.array(get_gp_moments())[None], scores["avg_vae_moments"]), axis=0),
                 "avg_vae_moments_ranked",
             ),
-            "Sample moments, coloured by difference",
+            "$p$",
             std_range,
             std_range,
             extended_html_row_index,
@@ -147,8 +155,8 @@ def display_loss_scores(scores, out_file_code, file_name):
             data = data_access[0]
             data_access = data_access[1]
 
-        latex_col_index = pandas.Index(latex_col_labels, name=title)
-        html_col_index = pandas.Index(html_col_labels, name=title)
+        latex_col_index = pandas.Index(latex_col_labels, name="Loss functions $\\backslash$ " + title)
+        html_col_index = pandas.Index(html_col_labels, name="Loss functions \\ " +title)
         colouring_data = rest[0] if len(rest) > 0 else None
         vmin = rest[1] if len(rest) >1 else None
 

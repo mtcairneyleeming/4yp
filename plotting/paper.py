@@ -200,15 +200,30 @@ def plot_trained_draws(
     include_standard_vae=False,
     single_decoder=False,
     leaky_relu=True,
+    filter_loss_fns= None
 ):
     rng_key = random.PRNGKey(3)
     rng_key, rng_key_gp = random.split(rng_key, 2)
 
     args = load_args(str(code), str(args_count), exp_name)
+    print(args["loss_fn_names"])
+
+    if filter_loss_fns is not None:
+        new_ln = []
+        new_l = []
+        for i, l in enumerate(args["loss_fn_names"]):
+            if l in filter_loss_fns:
+                new_l.append(args["loss_fns"][i])
+                new_ln.append(args["loss_fn_names"][i])
+
+        args["loss_fns"] = new_l
+        args["loss_fn_names"] = new_ln
 
     if include_standard_vae:
         args["loss_fn_names"] = ["RCL+KLD"] + args["loss_fn_names"]
         args["loss_fns"] = [None] + args["loss_fns"]
+
+    
 
     twoD, num_rows, num_cols = calc_plot_dimensions(args, num_cols, num_rows, True, separate_gp, include_standard_vae)
     print(len(args["loss_fn_names"]), twoD, num_rows, num_cols)

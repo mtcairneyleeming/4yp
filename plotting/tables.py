@@ -31,6 +31,8 @@ def latex_table(
 
     cmap = plt.get_cmap("Blues_r")
     cmap.set_bad(color="red")
+    
+    cmap.set_under(color="white")
 
     s = df.style
     if colour_by_rank:
