@@ -82,7 +82,7 @@ args.update(
 
         "scoring_num_draws": 5000,
 
-        "jitter_scaling": 1 / 300 * 4e-6,  # n times this gives the jitter
+        "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter
 
         "exp5": {
             "Arange": [25, 50, 100, 150, 200, 225, 250],
@@ -117,7 +117,7 @@ args.update(
             "Bdesc": "vae_scale_factor",
         },
         "exp9": {
-            "Arange": [100, 200, 400, 800, 1600, 3200, 6400],
+            "Arange": [100, 200, 300, 400, 500, 600, 700, 800],
             "Brange": [100, 200, 400, 800],
             "Adesc": "n",
             "Bdesc": "train_num_batches",
