@@ -93,7 +93,7 @@ args.update(
 
 ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
 
-args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
+args["ground_truth"] = ground_truth_df["tmean"].to_numpy() / 100
 
 rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
 
