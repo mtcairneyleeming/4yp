@@ -153,7 +153,8 @@ def plot_one_inference(
 
     ax.plot(x, mean, label="predicted mean")
     ax.plot(x, ground_truth, label="ground truth", color="orange")
-    ax.scatter(x_obs, y_obs, color="red", label="observed data", s=60)
+    if x_obs is not None and y_obs is not None:
+        ax.scatter(x_obs, y_obs, color="red", label="observed data", s=60)
     ax.set_title(title)
     if legend:
         ax.legend(loc=4)
@@ -367,12 +368,33 @@ def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_re
 
     if is_relative:
         ax.yaxis.set_major_formatter("{x:+.0f}")
-        # ax.yaxis.set_major_formatter(lambda x, pos: ("+" if x > 0 else "") + str(x) + "s")
-
     else:
         ax.yaxis.set_major_formatter("{x:.0f}")
-        # ax.yaxis.set_major_formatter(lambda x, pos: str(x) + "s")
 
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+def plot_scores_graph(times, x, curve_labels, x_label, y_label, legend_title, title, is_relative=False, ax=None, save_path=None):
+    x = onp.array(x)
+    if ax is None:
+        fig = plt.figure(figsize=(6, 4))
+        ax = fig.add_subplot(111)
+
+    for i, label in enumerate(curve_labels):
+        data = times[i]
+        nans = onp.isnan(data)
+        ax.plot(x[~nans], (times[i])[~nans], label=label)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    ax.legend(title=legend_title, loc="upper left")
+
+    if is_relative:
+        ax.yaxis.set_major_formatter("{x:+.0f}")
+    else:
+        ax.yaxis.set_major_formatter("{x:.0f}")
+        
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
