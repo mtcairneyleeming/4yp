@@ -21,9 +21,12 @@ def load_state_boundaries(st):
 def load_state_centroids(st):
     return gpd.read_file(f"data/state_{st}_centroids.geojson")
     
+def get_all_temp_data(st, year):
+    return pd.read_pickle(f"data/state_{st}_{year}_temps.pkl")
+
 
 def get_temp_data(st, year, aggr="year_max"):
-    return pd.read_pickle(f"data/state_{st}_{year}_{aggr}.pkl")
+    return pd.read_pickle(f"data/state_{st}_{year}_{aggr}_temps.pkl")
 
 def centroids_to_coords(centroids):
     x_coords = jnp.array(centroids.geometry.apply(lambda x: x.x))
