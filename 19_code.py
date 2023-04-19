@@ -94,7 +94,7 @@ args.update(
 
 ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
 
-args["ground_truth"] = ground_truth_df["tmean"].to_numpy() / 100
+args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
 
 rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
 
@@ -114,7 +114,7 @@ args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
 
-save_args(args["expcode"], "1", args)
+save_args(args["expcode"], "4", args)
 
 
 print(f" index {index}/{len(args['loss_fns']) -1} (0-indexed!)")
