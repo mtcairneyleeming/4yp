@@ -76,6 +76,8 @@ args.update(
         "test_num_batches": 2,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
+        "variance_prior_choice": "normal",
+        "variance_prior_arguments": {"location": 0.0, "scale": 15.0},
         "scoring_num_draws": 2000,
         "expcode": "19",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
@@ -98,21 +100,15 @@ rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
 
 
 num_obs = int(args["n"] * 0.5)
-print(args["n"], num_obs)
+
 
 obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"]-num_obs), False)))
-print(obs_mask.shape, obs_mask)
 obs_mask = random.permutation(rng_key_ground_truth_obs_mask, obs_mask)
-print(obs_mask)
 
-args["obs_idx"] = [x for x in range(args["n"]) if obs_mask[x]==True]
-
-args["obs_idx"] = jnp.array(args["obs_idx"])
-
-print(obs_mask.sum())
+args["obs_idx"] =  jnp.array([x for x in range(args["n"]) if obs_mask[x]==True])
 
 args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
-x_obs = jnp.arange(0, args["n"])[args["obs_idx"]]
+
 
 
 
@@ -136,7 +132,9 @@ gp = BuildGP(
     args["gp_kernel"],
     noise=False,
     length_prior_choice=args["length_prior_choice"],
-    prior_args=args["length_prior_arguments"],
+    length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
 )
 
 
@@ -264,7 +262,7 @@ f = (
         args["gp_kernel"],
         noise=True,
         length_prior_choice=args["length_prior_choice"],
-        prior_args=args["length_prior_arguments"],
+        length_prior_args=args["length_prior_arguments"],
         obs_idx=args["obs_idx"]
     )
     if using_gp

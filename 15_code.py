@@ -108,7 +108,7 @@ gp = BuildGP(
     8e-6,
     noise=True,
     length_prior_choice=args["length_prior_choice"],
-    prior_args=args["length_prior_arguments"],
+    length_prior_args=args["length_prior_arguments"],
 )
 
 if not use_pregenerated:

@@ -38,12 +38,12 @@ def plot_individual_training_history(code, exp_name, args_count, index):
         save_path=f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_{index}_training.pdf",
     )
 
+
 def get_training_history(code, exp_name, args_count, index):
     args = load_args(str(code), args_count, exp_name)
     loss_fn = args["loss_fn_names"][index]
     hist = load_training_history(code, gen_file_name(code, args, args["experiment"] + loss_fn))
     return hist
-
 
 
 def plot_individual_trained_draws(
@@ -76,7 +76,9 @@ def plot_individual_trained_draws(
             args["gp_kernel"],
             noise=False,
             length_prior_choice=args["length_prior_choice"],
-            prior_args=args["length_prior_arguments"],
+            length_prior_args=args["length_prior_arguments"],
+            variance_prior_choice=args["variance_prior_choice"],
+            variance_prior_args=args["variance_prior_arguments"],
         )
 
         plot_gp_predictive = Predictive(gp, num_samples=5000)
@@ -156,7 +158,6 @@ def plot_individual_trained_draws(
     fig.savefig(f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_{index}_draws.pdf")
 
 
-
 def plot_training_histories(code, exp_name, args_count, num_cols=None, num_rows=None, backfill=None):
     args = load_args(str(code), args_count, exp_name)
 
@@ -200,7 +201,7 @@ def plot_trained_draws(
     include_standard_vae=False,
     single_decoder=False,
     leaky_relu=True,
-    filter_loss_fns= None
+    filter_loss_fns=None,
 ):
     rng_key = random.PRNGKey(3)
     rng_key, rng_key_gp = random.split(rng_key, 2)
@@ -222,8 +223,6 @@ def plot_trained_draws(
     if include_standard_vae:
         args["loss_fn_names"] = ["RCL+KLD"] + args["loss_fn_names"]
         args["loss_fns"] = [None] + args["loss_fns"]
-
-    
 
     twoD, num_rows, num_cols = calc_plot_dimensions(args, num_cols, num_rows, True, separate_gp, include_standard_vae)
     print(len(args["loss_fn_names"]), twoD, num_rows, num_cols)
@@ -247,7 +246,9 @@ def plot_trained_draws(
         args["gp_kernel"],
         noise=False,
         length_prior_choice=args["length_prior_choice"],
-        prior_args=args["length_prior_arguments"],
+            length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
     )
 
     plot_gp_predictive = Predictive(gp, num_samples=5000)

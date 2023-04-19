@@ -155,7 +155,7 @@ gp = BuildGP(
     args["gp_kernel"],
     noise=False,
     length_prior_choice=args["length_prior_choice"],
-    prior_args=args["length_prior_arguments"],
+    length_prior_args=args["length_prior_arguments"],
 )
 
 

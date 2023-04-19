@@ -64,6 +64,8 @@ args.update(
         "test_num_batches": 20,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
+                "variance_prior_choice": "lognormal",
+        "variance_prior_arguments": {"location": 0.0, "scale": 0.1},
         "scoring_num_draws": 5000,
         "expcode": "20",
     }
@@ -118,7 +120,9 @@ gp = BuildGP(
     args["gp_kernel"],
     noise=False,
     length_prior_choice=args["length_prior_choice"],
-    prior_args=args["length_prior_arguments"],
+    length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
 )
 
 

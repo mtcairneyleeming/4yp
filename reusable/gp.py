@@ -29,41 +29,46 @@ def OneDGP(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, noise=False
     return y
 
 
-def setup_prior(length_prior_choice, prior_args):
-    if length_prior_choice == "invgamma":
+def setup_prior(prior_choice, prior_args):
+    if prior_choice == "invgamma":
         conc = prior_args.get("concentration", 4)
         rate = prior_args.get("rate", 1)
         return dist.InverseGamma(conc, rate)
 
-    elif length_prior_choice == "lognormal":
-        loc = prior_args.get("location", -1.34)
-        scale = prior_args.get("scale", 4)
+    elif prior_choice == "lognormal":
+        loc = prior_args.get("location", 0.0)
+        scale = prior_args.get("scale", 0.1)
         return dist.LogNormal(loc, scale)
+    
+    elif prior_choice == "normal":
+        loc = prior_args.get("location", 0.0)
+        scale = prior_args.get("scale", 15)
+        return dist.Normal(loc, scale)
 
-    elif length_prior_choice == "gamma":
+    elif prior_choice == "gamma":
         conc = prior_args.get("concentration", 4)
         rate = prior_args.get("rate", 1)
         return dist.Gamma(conc, rate)
 
-    elif length_prior_choice == "uniform":
+    elif prior_choice == "uniform":
         lower = prior_args.get("lower", 0.01)
         upper = prior_args.get("upper", 0.5)
         return dist.Uniform(lower, upper)
 
-    raise NotImplementedError(f"Unknown prior choice {length_prior_choice}")
+    raise NotImplementedError(f"Unknown prior choice {prior_choice}")
 
 
-def BuildGP(gp_kernel, jitter=2e-5, obs_idx=None, noise=False, length_prior_choice="invgamma", prior_args={}):
-    prior = setup_prior(length_prior_choice, prior_args)
+def BuildGP(gp_kernel, jitter=2e-5, obs_idx=None, noise=False, length_prior_choice="invgamma", length_prior_args={},  variance_prior_choice="lognormal", variance_prior_args={}):
+    length_prior = setup_prior(length_prior_choice, length_prior_args)
+    variance_prior = setup_prior(variance_prior_choice, variance_prior_args)
 
-    # -1.3418452 0.21973312
     def func(x, var=None, length=None, y=None, **kwargs):
         """The original, basic GP, with the length sampled from a fixed prior"""
         if length == None:
-            length = numpyro.sample("kernel_length", prior)
+            length = numpyro.sample("kernel_length", length_prior)
 
         if var == None:
-            var = numpyro.sample("kernel_var", dist.LogNormal(0.0, 0.1))
+            var = numpyro.sample("kernel_var", variance_prior)
 
         k = gp_kernel(x, var, length, jitter)
 
