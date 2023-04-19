@@ -87,7 +87,7 @@ args.update(
         "num_samples": 20000,
         "thinning": 1,
         "num_chains": 4,
-        "jitter_scaling": 1 / 300 * 4e-6,  # n times this gives the jitter
+        "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter
     }
 )
 

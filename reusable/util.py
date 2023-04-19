@@ -149,7 +149,16 @@ def gen_file_name(exp_prefix, naming_args, desc_suffix="", data_only=False, incl
         "num_samples_to_save",
     ]
 
-    DATA_ONLY_PARAMS = ["n", "batch_size", "train_num_batches", "test_num_batches", "length_prior_choice"]
+    DATA_ONLY_PARAMS = [
+        "n",
+        "batch_size",
+        "train_num_batches",
+        "test_num_batches",
+        "length_prior_choice",
+        "length_prior_arguments",
+        "variance_prior_choice",
+        "variance_prior_arguments"
+    ]
     if data_only:
         param_names = [x for x in DATA_ONLY_PARAMS if x not in args_leave_out]
     else:
@@ -160,7 +169,11 @@ def gen_file_name(exp_prefix, naming_args, desc_suffix="", data_only=False, incl
     vals = []
     for p in param_names:
         if p in naming_args:
-            vals.append(str(naming_args[p]))
+            if isinstance(naming_args[p], dict):
+                vals.append("~".join([str(x) for x in naming_args[p].values()]))
+            else:
+                vals.append(str(naming_args[p]))
+        
 
     return f"{exp_prefix}__" + "_".join(vals) + "__" + desc_suffix
 
