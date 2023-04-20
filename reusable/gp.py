@@ -39,16 +39,15 @@ def setup_prior(prior_choice, prior_args):
         loc = prior_args.get("location", 0.0)
         scale = prior_args.get("scale", 0.1)
         return dist.LogNormal(loc, scale)
-    
+
     elif prior_choice == "normal":
         loc = prior_args.get("location", 0.0)
         scale = prior_args.get("scale", 15.0)
         return dist.Normal(loc, scale)
-    
+
     elif prior_choice == "halfnormal":
         scale = prior_args.get("scale", 15.0)
         return dist.HalfNormal(scale)
-
 
     elif prior_choice == "gamma":
         conc = prior_args.get("concentration", 4)
@@ -63,7 +62,16 @@ def setup_prior(prior_choice, prior_args):
     raise NotImplementedError(f"Unknown prior choice {prior_choice}")
 
 
-def BuildGP(gp_kernel, jitter=2e-5, obs_idx=None, noise=False, length_prior_choice="invgamma", length_prior_args={},  variance_prior_choice="lognormal", variance_prior_args={}):
+def BuildGP(
+    gp_kernel,
+    jitter=2e-5,
+    obs_idx=None,
+    noise=False,
+    length_prior_choice="invgamma",
+    length_prior_args={},
+    variance_prior_choice="lognormal",
+    variance_prior_args={},
+):
     length_prior = setup_prior(length_prior_choice, length_prior_args)
     variance_prior = setup_prior(variance_prior_choice, variance_prior_args)
 
@@ -75,15 +83,28 @@ def BuildGP(gp_kernel, jitter=2e-5, obs_idx=None, noise=False, length_prior_choi
         if var == None:
             var = numpyro.sample("kernel_var", variance_prior)
 
-        k = gp_kernel(x, var, length, jitter)
+        k = gp_kernel(x, length, jitter)
 
         length = jnp.array(length).reshape(1)
 
         if noise == False:
-            y = numpyro.sample("y", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k), obs=y)
+            y = numpyro.sample(
+                "y",
+                dist.TransformedDistribution(
+                    dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k),
+                    dist.transforms.AffineTransform(1, var),
+                ),
+                obs=y,
+            )
         else:
+            f = numpyro.sample(
+                "f",
+                dist.TransformedDistribution(
+                    dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k),
+                    dist.transforms.AffineTransform(1, var),
+                ),
+            )
             sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
-            f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k))
 
             if obs_idx is not None:  # in this case y will be lower dimension, and observed - unsurprisingly!
                 y = numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)

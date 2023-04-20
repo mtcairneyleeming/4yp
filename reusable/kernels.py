@@ -18,12 +18,12 @@ def sq_euclidian_dist(x, z):
     return delta
 
 
-def esq_kernel(x, var, length, jitter=2e-5):
+def esq_kernel(x, length, jitter=2e-5):
     """For GPs only!!! as it returns a matrix"""
     dist = sq_euclidian_dist(x, x)
 
     deltaXsq = dist / (length**2)
-    k = var * jnp.exp(-0.5 * deltaXsq)
+    k = jnp.exp(-0.5 * deltaXsq)
     k += jitter * jnp.eye(x.shape[0])
     return k
 
