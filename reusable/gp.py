@@ -42,8 +42,13 @@ def setup_prior(prior_choice, prior_args):
     
     elif prior_choice == "normal":
         loc = prior_args.get("location", 0.0)
-        scale = prior_args.get("scale", 15)
+        scale = prior_args.get("scale", 15.0)
         return dist.Normal(loc, scale)
+    
+    elif prior_choice == "halfnormal":
+        scale = prior_args.get("scale", 15.0)
+        return dist.HalfNormal(scale)
+
 
     elif prior_choice == "gamma":
         conc = prior_args.get("concentration", 4)
