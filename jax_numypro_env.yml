@@ -18,5 +18,6 @@ dependencies:
   - tqdm
   - ipywidgets=7.7.1 # to fix missing progress bars in VS code
   - pip
+  - gpytorch=1.10
   - pip:
       - clu
