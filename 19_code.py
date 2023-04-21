@@ -51,14 +51,15 @@ args = {
     "state": 36,  # New York
     # ground truth
     "year": 2010,
-    "aggr_method": "year_max",
+    "coord_scaling_factor":  1e5,
+    "aggr_method": "mean",
     # GP prior configuration
     "gp_kernel": esq_kernel,
     "rng_key": random.PRNGKey(2),
 }
 
 state_centroids = load_state_centroids(args["state"])
-coords = centroids_to_coords(state_centroids)
+coords = centroids_to_coords(state_centroids, args["coord_scaling_factor"])
 
 args.update(
     {  # so we can use the definition of n to define x
@@ -83,8 +84,8 @@ args.update(
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
         
         # MCMC parameters
-        "num_warmup": 20000,
-        "num_samples": 20000,
+        "num_warmup": 40000,
+        "num_samples": 2000,
         "thinning": 1,
         "num_chains": 4,
         "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter
@@ -99,7 +100,7 @@ args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
 rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
 
 
-num_obs = int(args["n"] * 0.5)
+num_obs = int(args["n"] * 0.25)
 
 
 obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"]-num_obs), False)))
@@ -263,6 +264,8 @@ f = (
         noise=True,
         length_prior_choice=args["length_prior_choice"],
         length_prior_args=args["length_prior_arguments"],
+        variance_prior_choice=args["variance_prior_choice"],
+        variance_prior_args=args["variance_prior_arguments"],
         obs_idx=args["obs_idx"]
     )
     if using_gp
