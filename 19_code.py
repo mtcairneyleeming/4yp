@@ -42,7 +42,7 @@ on_arc = "SLURM_JOBID" in os.environ
 
 index = int(sys.argv[1])
 
-print(f"Starting 16, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}", flush=True)
+print(f"Starting 19, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}", flush=True)
 setup_signals()
 
 
@@ -77,7 +77,7 @@ args.update(
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
         "variance_prior_choice": "gamma",
-        "variance_prior_arguments": {"scale": 20.0},
+        "variance_prior_arguments": {"concentration": 5.25, "rate": 0.5},
         "scoring_num_draws": 2000,
         "expcode": "19",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],

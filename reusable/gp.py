@@ -13,15 +13,21 @@ def OneDGP(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, noise=False
     if var == None:
         var = numpyro.sample("kernel_var", dist.LogNormal(0.0, 0.1))
 
-    k = gp_kernel(x, var, length, jitter)
+    k = gp_kernel(x, length, jitter)
 
     length = jnp.array(length).reshape(1)
 
     if noise == False:
-        y = numpyro.sample("y", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k), obs=y)
+        y = numpyro.sample("y", dist.TransformedDistribution(
+                    dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k),
+                    dist.transforms.AffineTransform(0, var),
+                ), obs=y)
     else:
         sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
-        f = numpyro.sample("f", dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k))
+        f = numpyro.sample("f", dist.TransformedDistribution(
+                    dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k),
+                    dist.transforms.AffineTransform(0, var),
+                ))
         y = numpyro.sample("y", dist.Normal(f, sigma), obs=y)
 
     y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
@@ -74,6 +80,8 @@ def BuildGP(
 ):
     length_prior = setup_prior(length_prior_choice, length_prior_args)
     variance_prior = setup_prior(variance_prior_choice, variance_prior_args)
+    
+    print("Mean", variance_prior.mean, "Variance",  variance_prior.variance)
 
     def func(x, var=None, length=None, y=None, **kwargs):
         """The original, basic GP, with the length sampled from a fixed prior"""
@@ -82,6 +90,8 @@ def BuildGP(
 
         if var == None:
             var = numpyro.sample("kernel_var", variance_prior)
+
+
 
         k = gp_kernel(x, length, jitter)
 
@@ -92,16 +102,17 @@ def BuildGP(
                 "y",
                 dist.TransformedDistribution(
                     dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k),
-                    dist.transforms.AffineTransform(1, var),
+                    dist.transforms.AffineTransform(0, var),
                 ),
                 obs=y,
             )
         else:
+            pass
             f = numpyro.sample(
                 "f",
                 dist.TransformedDistribution(
                     dist.MultivariateNormal(loc=jnp.zeros(x.shape[0]), covariance_matrix=k),
-                    dist.transforms.AffineTransform(1, var),
+                    dist.transforms.AffineTransform(0, var),
                 ),
             )
             sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
