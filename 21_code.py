@@ -268,7 +268,7 @@ for obs_idx in args["obs_idx_lst"]:
         )
     )
 
-    label = "gp" if using_gp else f"{loss_fn}"
+    label = "gp" if using_gp else f"{loss_fn.__name__}"
 
     rng_key, rng_key_mcmc = random.split(rng_key, 2)
 
