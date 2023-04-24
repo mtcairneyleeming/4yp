@@ -41,7 +41,7 @@ on_arc = "SLURM_JOBID" in os.environ
 
 index = int(sys.argv[1])
 
-print(f"Starting 16, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}", flush=True)
+print(f"Starting 21, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}", flush=True)
 setup_signals()
 
 args = {
@@ -66,19 +66,40 @@ args.update(
         "test_num_batches": 2,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
-        "scoring_num_draws": 10000,
+        "variance_prior_choice": "lognormal",
+        "variance_prior_arguments": {"location": 0.0, "scale": 0.1},
+        "scoring_num_draws": 5000,
         "expcode": "21",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
         # MCMC parameters
         "num_warmup": 1000,
-        "num_samples": 40000,
+        "num_samples": 4000,
         "thinning": 1,
         "num_chains": 4,
-        "jitter_scaling": 1 / 300 * 4e-6,  # n times this gives the jitter
-
-        "binomial_N": 1000
+        "binomial_N": 50,
     }
 )
+
+gt_gp = BuildGP_Binomial(
+    args["binomial_N"],
+    args["gp_kernel"],
+    noise=True,
+    length_prior_choice=args["length_prior_choice"],
+    length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
+)
+
+rng_key_ground_truth = random.PRNGKey(1234)  # fixed to generate a "ground truth" GP we will try and infer
+
+ground_truth_predictive = Predictive(gt_gp, num_samples=1)
+gt_draws = ground_truth_predictive(rng_key_ground_truth, x=args["x"], gp_kernel=args["gp_kernel"])
+ground_truth = gt_draws["f"].T
+ground_truth_y_draw = gt_draws["y"].T
+
+args["ground_truth"] = ground_truth_y_draw
+
+args["obs_idx_lst"] = [[22, 50], [16, 33, 57, 96], [8, 24, 45, 61, 77, 84]]
 
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
@@ -102,7 +123,9 @@ gp = BuildGP_Binomial(
     args["gp_kernel"],
     noise=False,
     length_prior_choice=args["length_prior_choice"],
-    prior_args=args["length_prior_arguments"],
+    length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
 )
 
 
@@ -115,7 +138,6 @@ if not using_gp and not pre_trained:
             args["train_num_batches"],
             args["batch_size"],
             rng_key_train,
-            jitter=args["n"] * args["jitter_scaling"],
         )
 
         test_draws = gen_gp_batches(
@@ -125,7 +147,6 @@ if not using_gp and not pre_trained:
             1,
             args["test_num_batches"] * args["batch_size"],
             rng_key_test,
-            jitter=args["n"] * args["jitter_scaling"],
         )
         save_datasets(
             args["expcode"],
@@ -223,40 +244,48 @@ if not using_gp:
     )
 
 
-f = (
-    BuildGP_Binomial(
-        args["binomial_N"],
-        args["gp_kernel"],
-        noise=True,
-        length_prior_choice=args["length_prior_choice"],
-        prior_args=args["length_prior_arguments"],
+for obs_idx in args["obs_idx_lst"]:
+    obs_idx = jnp.array(obs_idx)
+    f = (
+        BuildGP_Binomial(
+            args["binomial_N"],
+            args["gp_kernel"],
+            noise=True,
+            length_prior_choice=args["length_prior_choice"],
+            length_prior_args=args["length_prior_arguments"],
+            variance_prior_choice=args["variance_prior_choice"],
+            variance_prior_args=args["variance_prior_arguments"],
+            obs_idx=obs_idx,
+        )
+        if using_gp
+        else vae_mcmc(
+            args["hidden_dim1"],
+            args["hidden_dim2"],
+            args["latent_dim"],
+            args["decoder_params"],
+            obs_idx=obs_idx,
+            noise=True,
+        )
     )
-    if using_gp
-    else vae_mcmc(
-        args["hidden_dim1"],
-        args["hidden_dim2"],
-        args["latent_dim"],
-        args["decoder_params"],
-        obs_idx=None,
-        noise=True,
+
+    label = "gp" if using_gp else f"{loss_fn}"
+
+    rng_key, rng_key_mcmc = random.split(rng_key, 2)
+
+    mcmc_samples = run_mcmc(
+        args["num_warmup"],
+        args["num_samples"],
+        args["num_chains"],
+        rng_key_mcmc,
+        f,
+        {"x": args["x"], "y": args["ground_truth"][obs_idx, 0]},
+        verbose=True,
+        max_run_length=None
     )
-)
-
-label = "gp" if using_gp else f"{loss_fn}"
-
-
-rng_key, rng_key_mcmc = random.split(rng_key, 2)
-
-mcmc_samples = run_mcmc(
-    args["num_warmup"],
-    args["num_samples"],
-    args["num_chains"],
-    rng_key_mcmc,
-    f,
-    args["x"],
-    args["ground_truth"],
-    verbose=True,
-)
-save_samples(
-    args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_mcmc", include_mcmc=True), mcmc_samples
-)
+    save_samples(
+        args["expcode"],
+        gen_file_name(
+            args["expcode"], args, f"inference_{label}_{'-'.join([str(x) for x in obs_idx])}_mcmc", include_mcmc=True
+        ),
+        mcmc_samples,
+    )
