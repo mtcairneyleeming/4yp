@@ -31,7 +31,9 @@ def get_temp_data(st, year, aggr="year_max"):
 def centroids_to_coords(centroids, scaling_factor):
     x_coords = jnp.array(centroids.geometry.apply(lambda x: x.x))
     y_coords = jnp.array(centroids.geometry.apply(lambda x: x.y))
-    x_coords = x_coords - jnp.mean(x_coords)
-    y_coords = y_coords - jnp.mean(y_coords)
-    return jnp.dstack((x_coords, y_coords))[0] / scaling_factor
+    mean_x = jnp.mean(x_coords)
+    mean_y = jnp.mean(y_coords)
+    x_coords = x_coords - mean_x
+    y_coords = y_coords - mean_y
+    return jnp.dstack((x_coords, y_coords))[0] / scaling_factor, (mean_x, mean_y)
 
