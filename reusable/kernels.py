@@ -39,6 +39,8 @@ def rq_matrix_kernel(scale):
         k += jitter * jnp.eye(x.shape[0])
         return k
     
+    func.__name__ == f"rq_matrix_kernel-{scale}"
+
     return func
 
 
