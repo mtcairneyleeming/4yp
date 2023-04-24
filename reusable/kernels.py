@@ -27,6 +27,20 @@ def esq_kernel(x, length, jitter=2e-5):
     k += jitter * jnp.eye(x.shape[0])
     return k
 
+def rq_matrix_kernel(scale):
+    """Scale is separated, because the current GP only has prior on kernel length"""
+    
+    def func (x, length, jitter=2e-5):
+        """For GPs only!!! as it returns a matrix"""
+        dist = sq_euclidian_dist(x, x)
+
+        deltaXsq = dist / (2* scale * length**2)
+        k = jnp.power(1 + deltaXsq, -scale)
+        k += jitter * jnp.eye(x.shape[0])
+        return k
+    
+    return func
+
 
 def rbf_kernel(length):
     @jax.jit

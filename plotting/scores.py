@@ -35,7 +35,7 @@ def get_gp_moments():
     return jnp.array([jnp.mean(x) for x in scores["gp_moments"]])
 
 
-def get_loss_scores(code: int, exp_name, args_count: int):
+def get_loss_scores(code: int, exp_name, args_count: int, backcompat_prior_names=False):
     """Given the raw data (which is v. oddly formatted), return a dictionary of lists:
     - loss_fns
     - frobenius: items: array of length num_orders_calced
@@ -50,7 +50,7 @@ def get_loss_scores(code: int, exp_name, args_count: int):
         scores["loss_fns"].append(loss_fn)
         s = load_scores(
             args["expcode"],
-            gen_file_name(code, args, args["experiment"] + loss_fn),
+            gen_file_name(code, args, args["experiment"] + loss_fn, backcompat_prior_names),
         )
 
         s["mmd_kernels"] = [x[0] for x in s["mmd"]]
@@ -72,18 +72,18 @@ def show_loss_scores(code, exp_name, args_count):
     display_loss_scores(scores, code, f"{code}_{exp_name}_{args_count}")
 
 
-def show_all_loss_scores(things):
+def show_all_loss_scores(things, backcompat_prior_names=False):
     all_scores = {}
 
     for code, exp_name, args_count in things:
 
-        s = get_loss_scores(code, exp_name, args_count)
+        s = get_loss_scores(code, exp_name, args_count, backcompat_prior_names)
         merge_dicts(all_scores, s, expand=False)
 
     display_loss_scores(
         all_scores,
         code,
-        f"{'-'.join([str(x[0]) for x in things])}_{'-'.join([str(x[1]) for x in things])}_{'-'.join([str(x[2]) for x in things])}",
+        f"{'-'.join([str(x[0]) for x in things])}_{'-'.join([str(x[1]) for x in things])}_{'-'.join([str(x[2]) for x in things])}"
     )
 
 
