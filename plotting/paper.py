@@ -30,7 +30,9 @@ from plotting.helpers import (
 def plot_individual_training_history(code, exp_name, args_count, index):
     args = load_args(str(code), args_count, exp_name)
     loss_fn = args["loss_fn_names"][index]
-    hist = load_training_history(code, gen_file_name(code, args, args["experiment"] + loss_fn))
+    hist = load_training_history(
+        code, gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn)
+    )
     plot_training(
         hist["test_loss"],
         hist["train_loss"],
@@ -42,7 +44,9 @@ def plot_individual_training_history(code, exp_name, args_count, index):
 def get_training_history(code, exp_name, args_count, index):
     args = load_args(str(code), args_count, exp_name)
     loss_fn = args["loss_fn_names"][index]
-    hist = load_training_history(code, gen_file_name(code, args, args["experiment"] + loss_fn))
+    hist = load_training_history(
+        code, gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn)
+    )
     return hist
 
 
@@ -128,11 +132,19 @@ def plot_individual_trained_draws(
             if single_decoder:
 
                 decoder_params = get_model_params(
-                    load_training_state(code, gen_file_name(code, args, args["experiment"] + loss_fn), dec_state)
+                    load_training_state(
+                        code,
+                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
+                        dec_state,
+                    )
                 )
             else:
                 decoder_params = get_decoder_params(
-                    load_training_state(code, gen_file_name(code, args, args["experiment"] + loss_fn), state)
+                    load_training_state(
+                        code,
+                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
+                        state,
+                    )
                 )
 
         vae_predictive = Predictive(decoder_sample if single_decoder else vae_sample, num_samples=5000)
@@ -175,15 +187,25 @@ def plot_training_histories(code, exp_name, args_count, num_cols=None, num_rows=
 
     clear_unused_axs(axs, mapping, twoD, len(args["loss_fn_names"]))
 
-    for i, loss_fn in enumerate(args["loss_fn_names"]):
+    i = 0
+    for loss_fn in args["loss_fn_names"]:
+        if loss_fn == "gp":
+            continue
 
-        hist = load_training_history(code, gen_file_name(code, args, args["experiment"] + loss_fn))
-        plot_training(
-            hist["test_loss"],
-            hist["train_loss"],
-            pretty_loss_fn_name(loss_fn),
-            ax=axs[onp.unravel_index(mapping(i), (num_rows, num_cols)) if twoD else i],
-        )
+        try:
+            hist = load_training_history(
+                code, gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn)
+            )
+            plot_training(
+                hist["test_loss"],
+                hist["train_loss"],
+                pretty_loss_fn_name(loss_fn),
+                ax=axs[onp.unravel_index(mapping(i), (num_rows, num_cols)) if twoD else i],
+            )
+        except FileNotFoundError as e:
+            print(e)
+
+        i += 1
 
     fig.tight_layout()
 
@@ -202,6 +224,8 @@ def plot_trained_draws(
     single_decoder=False,
     leaky_relu=True,
     filter_loss_fns=None,
+    gp_builder=None,
+    plot_range=None,
 ):
     rng_key = random.PRNGKey(3)
     rng_key, rng_key_gp = random.split(rng_key, 2)
@@ -242,14 +266,17 @@ def plot_trained_draws(
 
     clear_unused_axs(axs, mapping, twoD, len(args["loss_fn_names"]) + 1)
 
-    gp = BuildGP(
-        args["gp_kernel"],
-        noise=False,
-        length_prior_choice=args["length_prior_choice"],
+    if gp_builder is None:
+        gp = BuildGP(
+            args["gp_kernel"],
+            noise=False,
+            length_prior_choice=args["length_prior_choice"],
             length_prior_args=args["length_prior_arguments"],
-    variance_prior_choice=args["variance_prior_choice"],
-    variance_prior_args=args["variance_prior_arguments"],
-    )
+            variance_prior_choice=args["variance_prior_choice"],
+            variance_prior_args=args["variance_prior_arguments"],
+        )
+    else:
+        gp = gp_builder(args)
 
     plot_gp_predictive = Predictive(gp, num_samples=5000)
 
@@ -261,9 +288,13 @@ def plot_trained_draws(
         "$y=f_{GP}(x)$",
         "GP",
         ax=axs[onp.unravel_index(mapping(0), (num_rows, num_cols)) if twoD else 0],
+        _min=plot_range[0] if plot_range is not None else None,
+        _max=plot_range[1] if plot_range is not None else None,
     )
-
-    for i, loss_fn in enumerate(args["loss_fn_names"]):
+    i = 0
+    for loss_fn in args["loss_fn_names"]:
+        if loss_fn == "gp":
+            continue
         rng_key, rng_key_init, rng_key_predict = random.split(rng_key, 3)
 
         module = VAE(
@@ -298,11 +329,19 @@ def plot_trained_draws(
             if single_decoder:
 
                 decoder_params = get_model_params(
-                    load_training_state(code, gen_file_name(code, args, args["experiment"] + loss_fn), dec_state)
+                    load_training_state(
+                        code,
+                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
+                        dec_state,
+                    )
                 )
             else:
                 decoder_params = get_decoder_params(
-                    load_training_state(code, gen_file_name(code, args, args["experiment"] + loss_fn), state)
+                    load_training_state(
+                        code,
+                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
+                        state,
+                    )
                 )
 
         vae_predictive = Predictive(decoder_sample if single_decoder else vae_sample, num_samples=5000)
@@ -314,6 +353,7 @@ def plot_trained_draws(
             out_dim=args["n"],
             decoder_params=decoder_params,
         )["f"]
+        
         plot_draws_hpdi(
             vae_draws,
             args["x"],
@@ -321,7 +361,11 @@ def plot_trained_draws(
             "$y=f_{DEC}(x)$" if single_decoder else "$y=f_{VAE}(x)$",
             "PriorDec" if single_decoder else "PriorVAE",
             ax=axs[onp.unravel_index(mapping(i + 1), (num_rows, num_cols)) if twoD else i + 1],
+            _min=plot_range[0] if plot_range is not None else None,
+            _max=plot_range[1] if plot_range is not None else None,
         )
+
+        i += 1
 
     fig.tight_layout()
 

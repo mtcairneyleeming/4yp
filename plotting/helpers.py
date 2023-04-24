@@ -40,8 +40,9 @@ def align_right_backfill_with_gp(count, num_rows, num_cols):
 
 def calc_plot_dimensions(args, num_cols, num_rows, include_gp=False, extra_row_for_gp=False, include_standard_vae=False):
     # A = indexes over cols, B over rows - note flattening in code will
+    to_count = args["loss_fn_names"] if "loss_fn_names" in args else args["loss_fns"]
 
-    num_lfs = len(args["loss_fn_names"] if "loss_fn_names" in args else args["loss_fns"])
+    num_lfs = len([x for x in to_count if x is not None and x != "gp"])
 
     if num_cols is None and num_rows is None:
         twoD = "Arange" in args and "Brange" in args
