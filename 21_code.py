@@ -54,10 +54,9 @@ args.update(
     {  # so we can use the definition of n to define x
         "x": jnp.arange(0, 1, 1 / args["n"]),
         # VAE configuration
-        "hidden_dim1": 150,
-        "hidden_dim2": 150,
-        "latent_dim": 100,
-        "vae_var": 0.1,
+        "hidden_dim1": 70,
+        "hidden_dim2": 70,
+        "latent_dim": 35,
         # learning
         "num_epochs": 50,
         "learning_rate": 1.0e-3,

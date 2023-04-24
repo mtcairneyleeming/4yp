@@ -124,7 +124,7 @@ def load_datasets(exp_code, file_name, data_file_ext=".npz", on_arc=False):
     return train_draws, test_draws
 
 
-def gen_file_name(exp_prefix, naming_args, desc_suffix="", leave_data_out_default=True, data_only=False, include_mcmc=False, args_leave_out=[]):
+def gen_file_name(exp_prefix, naming_args, desc_suffix="", leave_data_out_default=False, data_only=False, include_mcmc=False, args_leave_out=[]):
     """Return a file name that reflects the params used to generate the saved weights. If the structure of args changes, this will gracefully fail,
     as it uses a default value if any of the params change."""
 
