@@ -99,7 +99,8 @@ def run_mcmc(
     verbose=False,
     thinning=1,
     group_by_chain=False,
-    max_run_length=200
+    max_run_length=200,
+    increment_save_fun=None,
 ):
     start = time.time()
 
@@ -110,9 +111,11 @@ def run_mcmc(
         warmup_per = num_warmup
         samples_per = num_samples
         warmup_runs = 1
-        sample_runs =1
+        sample_runs = 1
     else:
-        assert num_warmup % max_run_length ==0 and num_samples % max_run_length == 0, "Must be able to evenly divide the number of warmup and true samples by the run length"
+        assert (
+            num_warmup % max_run_length == 0 and num_samples % max_run_length == 0
+        ), "Must be able to evenly divide the number of warmup and true samples by the run length"
         warmup_per = max_run_length
         samples_per = max_run_length
         warmup_runs = num_warmup // max_run_length
@@ -129,20 +132,19 @@ def run_mcmc(
     )
 
     for i in range(warmup_runs):
-        mcmc.warmup(
-            rng_key,
-            **mcmc_arguments
-        )
-        print(f"Done MCMC warmup run {i+1}/{warmup_runs}",  flush=True)
+        mcmc.warmup(rng_key, **mcmc_arguments)
+        print(f"Done MCMC warmup run {i+1}/{warmup_runs}", flush=True)
 
     for i in range(sample_runs):
-        mcmc.run(
-            rng_key,
-            **mcmc_arguments
-        )
-        print(f"Done MCMC run {i+1}/{sample_runs}",  flush=True)
+        mcmc.run(rng_key, **mcmc_arguments)
+        print(f"Done MCMC run {i+1}/{sample_runs}", flush=True)
+        if increment_save_fun is not None:
+            increment_save_fun(i, mcmc.get_samples(group_by_chain=group_by_chain))
+        if verbose: # and i> 4 and  i % 5 == 0:
+            mcmc.print_summary(exclude_deterministic=False)
+
     if verbose:
-        mcmc.print_summary(exclude_deterministic=False)
+            mcmc.print_summary(exclude_deterministic=False)
 
     print("\nMCMC elapsed time:", time.time() - start)
 
