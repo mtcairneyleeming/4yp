@@ -51,7 +51,7 @@ args = {
     "state": 36,  # New York
     # ground truth
     "year": 2010,
-    "coord_scaling_factor":  1e5,
+    "coord_scaling_factor": 1e5,
     "aggr_method": "mean",
     # GP prior configuration
     "gp_kernel": esq_kernel,
@@ -66,7 +66,7 @@ args.update(
         "x": coords,
         "n": coords.shape[0],
         # VAE configuration
-        "hidden_dim1": 630, # 0.35 * n 
+        "hidden_dim1": 630,  # 0.35 * n
         "hidden_dim2": 575,
         "latent_dim": 540,
         # learning
@@ -82,10 +82,9 @@ args.update(
         "scoring_num_draws": 2000,
         "expcode": "19",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
-        
         # MCMC parameters
-        "num_warmup": 40000,
-        "num_samples": 2000,
+        "num_warmup": 40,
+        "num_samples": 160,
         "thinning": 1,
         "num_chains": 4,
         "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter
@@ -96,6 +95,7 @@ args.update(
 ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
 
 args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
+args["ground_truth"] = args["ground_truth"] - jnp.mean(args["ground_truth"])
 
 rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
 
@@ -103,14 +103,12 @@ rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
 num_obs = int(args["n"] * 0.25)
 
 
-obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"]-num_obs), False)))
+obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"] - num_obs), False)))
 obs_mask = random.permutation(rng_key_ground_truth_obs_mask, obs_mask)
 
-args["obs_idx"] =  jnp.array([x for x in range(args["n"]) if obs_mask[x]==True])
+args["obs_idx"] = jnp.array([x for x in range(args["n"]) if obs_mask[x] == True])
 
 args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
-
-
 
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
@@ -266,7 +264,7 @@ f = (
         length_prior_args=args["length_prior_arguments"],
         variance_prior_choice=args["variance_prior_choice"],
         variance_prior_args=args["variance_prior_arguments"],
-        obs_idx=args["obs_idx"]
+        obs_idx=args["obs_idx"],
     )
     if using_gp
     else vae_mcmc(
@@ -285,8 +283,6 @@ label = "gp" if using_gp else f"{loss_fn.__name__}"
 rng_key, rng_key_mcmc = random.split(rng_key, 2)
 
 
-
-
 mcmc_samples = run_mcmc(
     args["num_warmup"],
     args["num_samples"],
@@ -295,7 +291,7 @@ mcmc_samples = run_mcmc(
     f,
     {"x": args["x"], "y": args["ground_truth_y_obs"]},
     verbose=True,
-    max_run_length=None if not using_gp else 100
+    max_run_length=None if not using_gp else 100,
 )
 save_samples(
     args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_mcmc", include_mcmc=True), mcmc_samples
