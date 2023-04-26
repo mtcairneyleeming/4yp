@@ -66,7 +66,6 @@ def plot_on_state(
         point_frame.plot(ax=ax, marker='o', color='orange', markersize=1, zorder=2)
 
 
-    print("PLotiting")
     newframe.plot(
         "d", ax=ax, vmin=vmin, vmax=vmax, cmap=cmap, cax=cax, legend=show_colorbar, legend_kwds={"label": legend_title}
     )
@@ -78,7 +77,7 @@ def plot_on_state(
     
   
 
-    #ax.set_axis_off()
+    ax.set_axis_off()
 
 
 def plot_multi_on_state(
