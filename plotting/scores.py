@@ -91,8 +91,6 @@ def show_all_loss_scores(things, backcompat_prior_names=False):
 
 def display_loss_scores(scores, out_file_code, file_name):
 
-    # scores["avg_vae_moments"] = jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(get_gp_moments()))
-
     latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in scores["loss_fns"]])
     html_row_index = pandas.Index(scores["loss_fns"])
 
@@ -132,7 +130,7 @@ def display_loss_scores(scores, out_file_code, file_name):
         ("avg_moment_differences", "$p$", std_range, std_range, html_row_index, latex_row_index),
         (
             (
-                jnp.concatenate((jnp.array(get_gp_moments())[None], scores["avg_vae_moments"]), axis=0),
+                jnp.concatenate((scores["avg_gp_moments"], scores["avg_vae_moments"]), axis=0),
                 "avg_vae_moments_ranked",
             ),
             "$p$",
@@ -142,7 +140,7 @@ def display_loss_scores(scores, out_file_code, file_name):
             extended_latex_row_index,
             jnp.concatenate((
                 jnp.full((1, len(std_range)), -1000000),
-                jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(get_gp_moments()))),
+                jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(scores["avg_gp_moments"]))),
                 axis=0,
             ),
             1

@@ -9,6 +9,8 @@ import optax
 from jax import random
 from numpyro.infer import Predictive
 import numpyro
+from jax import config
+config.update("jax_disable_jit", True)
 
 numpyro.set_host_device_count(4)
 
@@ -54,9 +56,9 @@ args.update(
     {  # so we can use the definition of n to define x
         "x": jnp.arange(0, 1, 1 / args["n"]),
         # VAE configuration
-        "hidden_dim1": 70,
-        "hidden_dim2": 70,
-        "latent_dim": 35,
+        "hidden_dim1": 100,
+        "hidden_dim2": 100,
+        "latent_dim": 100,
         # learning
         "num_epochs": 50,
         "learning_rate": 1.0e-3,
@@ -103,7 +105,7 @@ args["obs_idx_lst"] = [[22, 50], [16, 33, 57, 96], [8, 24, 45, 61, 77, 84]]
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
 
-save_args(args["expcode"], "1", args)
+save_args(args["expcode"], "2", args)
 
 
 print(f" index {index}/{len(args['loss_fns']) -1} (0-indexed!)")
@@ -270,6 +272,15 @@ for obs_idx in args["obs_idx_lst"]:
     label = "gp" if using_gp else f"{loss_fn.__name__}"
 
     rng_key, rng_key_mcmc = random.split(rng_key, 2)
+
+    from reusable.gp import BuildGP_Binomial
+    from reusable.kernels import esq_kernel
+    import numpyro
+    import jax.numpy as jnp
+
+    with numpyro.handlers.seed(rng_seed=1):
+        trace = numpyro.handlers.trace(f).get_trace(x = jnp.arange(0, 1, 100), y= args["ground_truth"][obs_idx, 0])
+    print(numpyro.util.format_shapes(trace))
 
     mcmc_samples = run_mcmc(
         args["num_warmup"],
