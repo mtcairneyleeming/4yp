@@ -36,6 +36,7 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
 
     if draws.shape[0] == 0:
         print(f"WARNING! all draws were NaN for title {title}, ylabel {ylabel}")
+        ax.set_title(title)
         return ax
     
     mean = jnp.nanmean(draws, axis=0)
@@ -49,6 +50,10 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
     ax.fill_between(x, hpdi[0], hpdi[1], alpha=0.1, interpolate=True, label="95% HPDI")
     ax.plot(x, mean, label="mean")
     ax.legend(loc=4)
+    if _min is None:
+        _min = -2
+    if _max is None:
+        _max = 2
     ax.set_ylim([_min, _max])
     ax.set_xlabel("$x$")
     ax.set_ylabel(ylabel)

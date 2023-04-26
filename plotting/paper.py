@@ -26,212 +26,84 @@ from plotting.helpers import (
     pretty_loss_fn_name,
 )
 
+# ======================================================================================
+# Get training histories/etc.
 
-def plot_individual_training_history(code, exp_name, args_count, index):
+
+def get_training_histories(code, exp_name, args_count, file_back_compat=None):
     args = load_args(str(code), args_count, exp_name)
-    loss_fn = args["loss_fn_names"][index]
-    hist = load_training_history(
-        code, gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn)
-    )
-    plot_training(
-        hist["test_loss"],
-        hist["train_loss"],
-        pretty_loss_fn_name(loss_fn),
-        save_path=f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_{index}_training.pdf",
-    )
+    return get_training_histories_from_args(args, file_back_compat)
 
 
-def get_training_history(code, exp_name, args_count, index):
-    args = load_args(str(code), args_count, exp_name)
-    loss_fn = args["loss_fn_names"][index]
-    hist = load_training_history(
-        code, gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn)
-    )
-    return hist
+def get_training_histories_from_args(args, file_back_compat=None):
 
+    hists = []
 
-def plot_individual_trained_draws(
-    code,
-    exp_name,
-    args_count,
-    index,
-    include_gp=False,
-    include_standard_vae=False,
-    single_decoder=False,
-    leaky_relu=True,
-):
-    rng_key = random.PRNGKey(3)
-    rng_key, rng_key_gp = random.split(rng_key, 2)
-
-    args = load_args(str(code), str(args_count), exp_name)
-
-    args["loss_fns"] = [args["loss_fns"][index]]
-    args["loss_fn_names"] = [args["loss_fn_names"][index]]
-
-    if include_standard_vae:
-        args["loss_fn_names"] = ["RCL+KLD"] + args["loss_fn_names"]
-        args["loss_fns"] = [None] + args["loss_fns"]
-    num_cols = len(args["loss_fn_names"]) + (1 if include_gp else 0)
-
-    fig, axs = plt.subplots(nrows=1, ncols=num_cols, figsize=(num_cols * 6, 5))
-
-    if include_gp:
-        gp = BuildGP(
-            args["gp_kernel"],
-            noise=False,
-            length_prior_choice=args["length_prior_choice"],
-            length_prior_args=args["length_prior_arguments"],
-            variance_prior_choice=args["variance_prior_choice"],
-            variance_prior_args=args["variance_prior_arguments"],
-        )
-
-        plot_gp_predictive = Predictive(gp, num_samples=5000)
-
-        gp_draws = plot_gp_predictive(rng_key_gp, x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5)["y"]
-        plot_draws_hpdi(
-            gp_draws,
-            args["x"],
-            f"GP draws",
-            "$y=f_{GP}(x)$",
-            "GP",
-            ax=axs[0],
-        )
-
-    for i, loss_fn in enumerate(args["loss_fn_names"]):
-        rng_key, rng_key_init, rng_key_predict = random.split(rng_key, 3)
-
-        module = VAE(
-            hidden_dim1=args["hidden_dim1"],
-            hidden_dim2=args["hidden_dim2"],
-            latent_dim=args["latent_dim"],
-            out_dim=args["n"],
-            conditional=False,
-            leaky=leaky_relu,
-        )
-
-        if single_decoder:
-            single_decoder = Single_Decoder(
-                hidden_dim1=args["hidden_dim1"], hidden_dim2=args["hidden_dim2"], out_dim=args["n"], leaky=leaky_relu
-            )
-
-        params = module.init(rng_key, jnp.ones((args["n"],)))["params"]
-        tx = optax.adam(args["learning_rate"])
-        state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
-
-        if single_decoder:
-            params = single_decoder.init(rng_key, jnp.ones((args["n"] + args["latent_dim"],)))["params"]
-
-            dec_state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
-
-        if include_standard_vae and loss_fn == "RCL+KLD":
-            standard_args = load_args(16, 1, "exp1")
-            decoder_params = get_decoder_params(
-                load_training_state("16", gen_file_name("16", standard_args, "exp1" + loss_fn), state)
-            )
-        else:
-            if single_decoder:
-
-                decoder_params = get_model_params(
-                    load_training_state(
-                        code,
-                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
-                        dec_state,
-                    )
-                )
-            else:
-                decoder_params = get_decoder_params(
-                    load_training_state(
-                        code,
-                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
-                        state,
-                    )
-                )
-
-        vae_predictive = Predictive(decoder_sample if single_decoder else vae_sample, num_samples=5000)
-        vae_draws = vae_predictive(
-            rng_key_predict,
-            hidden_dim1=args["hidden_dim1"],
-            hidden_dim2=args["hidden_dim2"],
-            latent_dim=args["latent_dim"],
-            out_dim=args["n"],
-            decoder_params=decoder_params,
-        )["f"]
-        plot_draws_hpdi(
-            vae_draws,
-            args["x"],
-            pretty_loss_fn_name(loss_fn),
-            "$y=f_{DEC}(x)$" if single_decoder else "$y=f_{VAE}(x)$",
-            "PriorDec" if single_decoder else "PriorVAE",
-            ax=axs[i + 1 if include_gp else i],
-        )
-
-    fig.tight_layout()
-
-    fig.savefig(f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_{index}_draws.pdf")
-
-
-def plot_training_histories(code, exp_name, args_count, num_cols=None, num_rows=None, backfill=None):
-    args = load_args(str(code), args_count, exp_name)
-
-    twoD, num_rows, num_cols = calc_plot_dimensions(args, num_cols, num_rows, False, False)
-
-    match backfill:
-        case None:
-            mapping = lambda i: i
-        case "align_left":
-            mapping = align_left_backfill(len(args["loss_fns"]), num_rows, num_cols)
-        case "align_right":
-            mapping = align_right_backfill(len(args["loss_fns"]), num_rows, num_cols)
-
-    fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
-
-    clear_unused_axs(axs, mapping, twoD, len(args["loss_fn_names"]))
-
-    i = 0
     for loss_fn in args["loss_fn_names"]:
         if loss_fn == "gp":
             continue
 
         try:
-            hist = load_training_history(
-                code, gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn)
-            )
-            plot_training(
-                hist["test_loss"],
-                hist["train_loss"],
-                pretty_loss_fn_name(loss_fn),
-                ax=axs[onp.unravel_index(mapping(i), (num_rows, num_cols)) if twoD else i],
+            hists.append(
+                (
+                    loss_fn,
+                    load_training_history(
+                        args["expcode"],
+                        gen_file_name(
+                            args["expcode"],
+                            args,
+                            (args["experiment"] if "experiment" in args else "") + loss_fn,
+                            back_compat_version=file_back_compat,
+                        ),
+                    ),
+                )
             )
         except FileNotFoundError as e:
             print(e)
-
-        i += 1
-
-    fig.tight_layout()
-
-    fig.savefig(f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_training.pdf")
+    return hists, args
 
 
-def plot_trained_draws(
+def get_training_history(code, exp_name, args_count, index, file_back_compat=None):
+    return get_training_histories(code, exp_name, args_count, file_back_compat)[index][0]
+
+
+def get_trained_draws(
     code,
     exp_name,
     args_count,
-    num_cols=None,
-    num_rows=None,
-    backfill=None,
-    separate_gp=False,
+    file_back_compat=None,
     include_standard_vae=False,
+    include_gp=True,
     single_decoder=False,
     leaky_relu=True,
     filter_loss_fns=None,
     gp_builder=None,
-    plot_range=None,
+    
+):
+    return get_trained_draws_from_args(
+        load_args(str(code), str(args_count), exp_name),
+        file_back_compat,
+        include_standard_vae,
+        include_gp,
+        single_decoder,
+        leaky_relu,
+        filter_loss_fns,
+        gp_builder,
+    )
+
+
+def get_trained_draws_from_args(
+    args,
+    file_back_compat=None,
+    include_standard_vae=False,
+    include_gp=True,
+    single_decoder=False,
+    leaky_relu=True,
+    filter_loss_fns=None,
+    gp_builder=None,
 ):
     rng_key = random.PRNGKey(3)
     rng_key, rng_key_gp = random.split(rng_key, 2)
-
-    args = load_args(str(code), str(args_count), exp_name)
-    print(args["loss_fn_names"])
 
     if filter_loss_fns is not None:
         new_ln = []
@@ -248,50 +120,28 @@ def plot_trained_draws(
         args["loss_fn_names"] = ["RCL+KLD"] + args["loss_fn_names"]
         args["loss_fns"] = [None] + args["loss_fns"]
 
-    twoD, num_rows, num_cols = calc_plot_dimensions(args, num_cols, num_rows, True, separate_gp, include_standard_vae)
-    print(len(args["loss_fn_names"]), twoD, num_rows, num_cols)
+    if include_gp:
+        if gp_builder is None:
+            gp = BuildGP(
+                args["gp_kernel"],
+                noise=False,
+                length_prior_choice=args["length_prior_choice"],
+                length_prior_args=args["length_prior_arguments"],
+                variance_prior_choice=args.get("variance_prior_choice", "lognormal"),
+                variance_prior_args=args.get("variance_prior_arguments", {}),
+            )
+        else:
+            gp = gp_builder(args)
 
-    match backfill:
-        case None:
-            if separate_gp:
-                mapping = lambda i: 0 if i == 0 else i - 1 + num_cols
-            else:
-                mapping = lambda i: i
-        case "align_left":
-            mapping = align_left_backfill(len(args["loss_fn_names"]) + 1, num_rows, num_cols)
-        case "align_right":
-            mapping = align_right_backfill_with_gp(len(args["loss_fn_names"]) + 1, num_rows, num_cols)
+        plot_gp_predictive = Predictive(gp, num_samples=5000)
 
-    fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
+    draws = []
 
-    clear_unused_axs(axs, mapping, twoD, len(args["loss_fn_names"]) + 1)
+    if include_gp:
+        gp_draws = plot_gp_predictive(rng_key_gp, x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5)["y"]
 
-    if gp_builder is None:
-        gp = BuildGP(
-            args["gp_kernel"],
-            noise=False,
-            length_prior_choice=args["length_prior_choice"],
-            length_prior_args=args["length_prior_arguments"],
-            variance_prior_choice=args["variance_prior_choice"],
-            variance_prior_args=args["variance_prior_arguments"],
-        )
-    else:
-        gp = gp_builder(args)
+        draws.append((gp_draws, "GP"))
 
-    plot_gp_predictive = Predictive(gp, num_samples=5000)
-
-    gp_draws = plot_gp_predictive(rng_key_gp, x=args["x"], gp_kernel=args["gp_kernel"], jitter=1e-5)["y"]
-    plot_draws_hpdi(
-        gp_draws,
-        args["x"],
-        f"GP draws",
-        "$y=f_{GP}(x)$",
-        "GP",
-        ax=axs[onp.unravel_index(mapping(0), (num_rows, num_cols)) if twoD else 0],
-        _min=plot_range[0] if plot_range is not None else None,
-        _max=plot_range[1] if plot_range is not None else None,
-    )
-    i = 0
     for loss_fn in args["loss_fn_names"]:
         if loss_fn == "gp":
             continue
@@ -323,23 +173,33 @@ def plot_trained_draws(
         if include_standard_vae and loss_fn == "RCL+KLD":
             standard_args = load_args(16, 1, "exp1")
             decoder_params = get_decoder_params(
-                load_training_state("16", gen_file_name("16", standard_args, "exp1" + loss_fn), state)
+                load_training_state("16", gen_file_name("16", standard_args, "exp1" + loss_fn, "A"), state)
             )
         else:
             if single_decoder:
 
                 decoder_params = get_model_params(
                     load_training_state(
-                        code,
-                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
+                        args["expcode"],
+                        gen_file_name(
+                            args["expcode"],
+                            args,
+                            (args["experiment"] if "experiment" in args else "") + loss_fn,
+                            file_back_compat,
+                        ),
                         dec_state,
                     )
                 )
             else:
                 decoder_params = get_decoder_params(
                     load_training_state(
-                        code,
-                        gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn),
+                        args["expcode"],
+                        gen_file_name(
+                            args["expcode"],
+                            args,
+                            (args["experiment"] if "experiment" in args else "") + loss_fn,
+                            file_back_compat,
+                        ),
                         state,
                     )
                 )
@@ -353,20 +213,148 @@ def plot_trained_draws(
             out_dim=args["n"],
             decoder_params=decoder_params,
         )["f"]
-        
-        plot_draws_hpdi(
-            vae_draws,
-            args["x"],
-            pretty_loss_fn_name(loss_fn),
-            "$y=f_{DEC}(x)$" if single_decoder else "$y=f_{VAE}(x)$",
-            "PriorDec" if single_decoder else "PriorVAE",
-            ax=axs[onp.unravel_index(mapping(i + 1), (num_rows, num_cols)) if twoD else i + 1],
-            _min=plot_range[0] if plot_range is not None else None,
-            _max=plot_range[1] if plot_range is not None else None,
-        )
+
+        draws.append((vae_draws, loss_fn))
+
+    return draws, args
+
+
+# ======================================================================================
+# Plot loaded data
+
+
+def plot_individual_training_history(code, exp_name, args_count, index):
+    args = load_args(str(code), args_count, exp_name)
+    loss_fn = args["loss_fn_names"][index]
+    hist = load_training_history(
+        code, gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn)
+    )
+    plot_training(
+        hist["test_loss"],
+        hist["train_loss"],
+        pretty_loss_fn_name(loss_fn),
+        save_path=f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_{index}_training.pdf",
+    )
+
+
+def plot_training_histories(histories, save_file_name, num_rows, num_cols, backfill=None):
+    match backfill:
+        case None:
+            mapping = lambda i: i
+        case "align_left":
+            mapping = align_left_backfill(len(histories), num_rows, num_cols)
+        case "align_right":
+            mapping = align_right_backfill(len(histories), num_rows, num_cols)
+
+    fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
+
+    clear_unused_axs(axs, mapping, len(histories))
+
+    i = 0
+    for (loss_fn, hist) in histories:
+        if loss_fn == "gp":
+            continue
+
+        try:
+            plot_training(
+                hist["test_loss"],
+                hist["train_loss"],
+                pretty_loss_fn_name(loss_fn),
+                ax=axs.flat[mapping(i)],
+            )
+        except FileNotFoundError as e:
+            print(e)
 
         i += 1
 
     fig.tight_layout()
 
-    fig.savefig(f"./gen_plots/{code}/{code}_{exp_name}_{args_count}_draws.pdf")
+    fig.savefig(f"./gen_plots/{save_file_name}_training.pdf")
+
+
+def plot_trained_draws(
+    draws,
+    x,
+    num_cols,
+    num_rows,
+    save_file_name,
+    backfill=None,
+    separate_gp=False,
+    plot_range=None,
+    y_axis_label="$y=f_{VAE}(x)$",
+    legend_label="PriorVAE",
+):
+    assert num_cols * num_rows >= len(draws)
+
+    # add an extra row if asked, or if it won't fit in the grid
+    if separate_gp:
+        num_rows += 1
+
+    match backfill:
+        case None:
+            if separate_gp:
+                mapping = lambda i: 0 if i == 0 else i - 1 + num_cols
+            else:
+                mapping = lambda i: i
+        case "align_left":
+            mapping = align_left_backfill(len(draws), num_rows, num_cols)
+        case "align_right":
+            mapping = align_right_backfill_with_gp(len(draws), num_rows, num_cols)
+
+    fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
+
+    clear_unused_axs(axs, mapping, len(draws) + 1)
+
+    for i, (draw, title) in enumerate(draws):
+        if plot_range is None:
+            plot_range_i = [None, None]
+        elif len(plot_range) > 2:
+            plot_range_i = plot_range[i]
+        else:
+            plot_range_i = plot_range
+        plot_draws_hpdi(
+            draw,
+            x,
+            pretty_loss_fn_name(title),
+            "$y=f_{GP}(x)$" if title == "gp" else y_axis_label,
+            "GP" if title == "gp" else legend_label,
+            ax=axs.flat[mapping(i)],
+            _min=plot_range_i[0],
+            _max=plot_range_i[1],
+        )
+
+    fig.tight_layout()
+
+    fig.savefig(f"./gen_plots/{save_file_name}_draws.pdf")
+
+
+# ======================================================================================
+# Get and plot helper methods
+
+
+def plot_simple_hists(code, exp_name, args_disambig, file_compat):
+    hists, args = get_training_histories(code, exp_name, args_disambig, file_compat)
+    plot_training_histories(hists, f"/{code}/{code}_{exp_name}_{args_disambig}", *calc_plot_dimensions(args, False))
+
+
+def plot_simple_draws(
+    code,
+    exp_name,
+    args_disambig,
+    file_compat,
+    include_standard_vae=False,
+    single_decoder=False,
+    leaky_relu=True,
+    filter=None,
+    gp_builder=None,
+):
+    draws, args = get_trained_draws(
+        code, exp_name, args_disambig, file_compat, include_standard_vae, single_decoder, leaky_relu, filter, gp_builder
+    )
+    plot_trained_draws(
+        draws,
+        args["x"],
+        *calc_plot_dimensions(args, True),
+        f"/{code}/{code}_{exp_name}_{args_disambig}",
+        backfill="align_right",
+    )

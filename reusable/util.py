@@ -124,51 +124,141 @@ def load_datasets(exp_code, file_name, data_file_ext=".npz", on_arc=False):
     return train_draws, test_draws
 
 
-def gen_file_name(exp_prefix, naming_args, desc_suffix="", leave_data_out_default=False, data_only=False, include_mcmc=False, args_leave_out=[]):
+def gen_file_name(exp_prefix, naming_args, desc_suffix="", back_compat_version=None, data_only=False, include_mcmc=False, args_leave_out=[]):
     """Return a file name that reflects the params used to generate the saved weights. If the structure of args changes, this will gracefully fail,
     as it uses a default value if any of the params change."""
 
-    STANDARD_PARAMS = [
-        "n",
-        "hidden_dim1",
-        "hidden_dim2",
-        "latent_dim",
-        "vae_var",
-        "leaky_relu",
-        "num_epochs",
-        "learning_rate",
-        "batch_size",
-        "train_num_batches",
-        "scoring_num_draws",
-    ]
-    MCMC_PARAMS = [
-        "num_warmup",
-        "num_samples",
-        "thinning",
-        "num_chains",
-        "num_samples_to_save",
-    ]
 
-    DATA_ONLY_PARAMS = [
-        "n",
-        "batch_size",
-        "train_num_batches",
-        "test_num_batches",
-        "gp_kernel",
-        "length_prior_choice",
-        "length_prior_arguments",
-        "variance_prior_choice",
-        "variance_prior_arguments"
-    ]
+    if back_compat_version == "A":
 
-    param_names = []
-    if (not leave_data_out_default) or data_only:
-        param_names = param_names + [x for x in DATA_ONLY_PARAMS if x not in args_leave_out]
-    
-    if not data_only:
-        param_names = param_names +  [x for x in STANDARD_PARAMS if x not in args_leave_out]
-        if include_mcmc:
-            param_names = param_names + [x for x in MCMC_PARAMS if x not in args_leave_out]
+        STANDARD_PARAMS = [
+            "n",
+            "hidden_dim1",
+            "hidden_dim2",
+            "latent_dim",
+            "vae_var",
+            "leaky_relu",
+            "num_epochs",
+            "learning_rate",
+            "batch_size",
+            "train_num_batches",
+            "scoring_num_draws",
+        ]
+        MCMC_PARAMS = [
+            "num_warmup",
+            "num_samples",
+            "thinning",
+            "num_chains",
+            "num_samples_to_save",
+        ]
+
+        DATA_ONLY_PARAMS = [
+            "n",
+            "batch_size",
+            "train_num_batches",
+            "test_num_batches",
+            #"gp_kernel",
+            "length_prior_choice",
+            "length_prior_arguments",
+            #"variance_prior_choice",
+            #"variance_prior_arguments"
+        ]
+
+        param_names = []
+        if data_only:
+            param_names = param_names + [x for x in DATA_ONLY_PARAMS if x not in args_leave_out]
+        
+        if not data_only:
+            param_names = param_names +  [x for x in STANDARD_PARAMS if x not in args_leave_out]
+            if include_mcmc:
+                param_names = param_names + [x for x in MCMC_PARAMS if x not in args_leave_out]
+
+    elif back_compat_version == "B":
+
+        STANDARD_PARAMS = [
+            "n",
+            "hidden_dim1",
+            "hidden_dim2",
+            "latent_dim",
+            "vae_var",
+            "leaky_relu",
+            "num_epochs",
+            "learning_rate",
+            "batch_size",
+            "train_num_batches",
+            "scoring_num_draws",
+        ]
+        MCMC_PARAMS = [
+            "num_warmup",
+            "num_samples",
+            "thinning",
+            "num_chains",
+            "num_samples_to_save",
+        ]
+
+        DATA_ONLY_PARAMS = [
+            "n",
+            "batch_size",
+            "train_num_batches",
+            "test_num_batches",
+            "gp_kernel",
+            "length_prior_choice",
+            "length_prior_arguments",
+            "variance_prior_choice",
+            "variance_prior_arguments"
+        ]
+
+        param_names = []
+        if data_only:
+            param_names = param_names + [x for x in DATA_ONLY_PARAMS if x not in args_leave_out]
+        
+        if not data_only:
+            param_names = param_names +  [x for x in STANDARD_PARAMS if x not in args_leave_out]
+            if include_mcmc:
+                param_names = param_names + [x for x in MCMC_PARAMS if x not in args_leave_out]
+
+    else:
+
+        DATA_PARAMS = [
+            "n",
+            "batch_size",
+            "train_num_batches",
+            "test_num_batches",
+            "gp_kernel",
+            "length_prior_choice",
+            "length_prior_arguments",
+            "variance_prior_choice",
+            "variance_prior_arguments"
+        ]
+        
+        LEARNING_PARAMS = [
+            
+            "hidden_dim1",
+            "hidden_dim2",
+            "latent_dim",
+            "leaky_relu",
+            "num_epochs",
+            "learning_rate",
+            "scoring_num_draws",
+        ]
+
+        MCMC_PARAMS = [
+            "num_warmup",
+            "num_samples",
+            "thinning",
+            "num_chains",
+            "num_samples_to_save",
+        ]
+
+        
+
+        param_names = [x for x in DATA_PARAMS if x not in args_leave_out]
+        
+        if not data_only:
+            param_names = param_names +  [x for x in LEARNING_PARAMS if x not in args_leave_out]
+            if include_mcmc:
+                param_names = param_names + [x for x in MCMC_PARAMS if x not in args_leave_out]
+
 
     vals = []
     for p in param_names:

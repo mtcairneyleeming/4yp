@@ -29,7 +29,7 @@ def align_right_backfill_with_gp(count, num_rows, num_cols):
     assert(count <= num_cols * num_rows and count >= (num_rows-1) * num_cols)
 
     def func(i):
-        if gap > 0 and i == 0:  # i.e. the GP
+        if gap >= 0 and i == 0:  # i.e. the GP
             return 0
 
         if i > 0:
@@ -38,41 +38,40 @@ def align_right_backfill_with_gp(count, num_rows, num_cols):
     return func
 
 
-def calc_plot_dimensions(args, num_cols, num_rows, include_gp=False, extra_row_for_gp=False, include_standard_vae=False):
+
+
+def calc_plot_dimensions(args, include_gp=False):
     # A = indexes over cols, B over rows - note flattening in code will
     to_count = args["loss_fn_names"] if "loss_fn_names" in args else args["loss_fns"]
 
     num_lfs = len([x for x in to_count if x is not None and x != "gp"])
 
-    if num_cols is None and num_rows is None:
-        twoD = "Arange" in args and "Brange" in args
-        num_cols = len(args["Arange"]) if twoD else 1
-        num_rows = len(args["Brange"]) if twoD else num_lfs
-        
-    else:
-        twoD = True
-        assert num_cols is not None and num_rows is not None
+
+    twoD = "Arange" in args and "Brange" in args
+    num_cols = len(args["Arange"]) if twoD else 1
+    num_rows = len(args["Brange"]) if twoD else num_lfs
+    
 
     # add an extra row if asked, or if it won't fit in the grid
-    if include_standard_vae and (num_cols * num_rows <= num_lfs):
+    if include_gp and (num_cols * num_rows <= num_lfs):
         num_rows += 1
 
-    # add an extra row if asked, or if it won't fit in the grid
-    if include_gp and (extra_row_for_gp or num_cols * num_rows <= num_lfs):
-        num_rows += 1
-
-    return twoD, num_rows, num_cols
+    return num_rows, num_cols
 
 
-def clear_unused_axs(axs, mapping, twoD, total):
-    if not twoD:
-        return
+def clear_unused_axs(axs, mapping, total):
+    if len(axs.shape) == 1:
+        return 
     num_rows, num_cols = axs.shape
+
     used_axes = [mapping(i) for i in range(total)]
     for i in range(num_cols * num_rows):
         if i not in used_axes:
-            axs[onp.unravel_index(i, (num_rows, num_cols))].remove()
+            axs.flat[i].remove()
 
+def numstr(s:str):
+    s = float(s)
+    return str(int(s)) if s.is_integer() else f"{s:.2f}"
 
 def pretty_loss_fn_name(loss_fn: str):
     RCL_LATEX = r"\mathrm{RCL}"
@@ -102,17 +101,14 @@ def pretty_loss_fn_name(loss_fn: str):
             
             for i, m in enumerate(mult):
                 if mmd == "mmd_rbf_sum":
-                    m = float(m)
-                    s = str(int(m)) if m.is_integer() else f"{m:.2f}"
+                    s = numstr(m)
                     if i != 0:
                         after += "+"
                     after += f"{MMD_RBF_LATEX}({s})"
                 if mmd == "mmd_rqk_sum":
                     ls, a = m.split(",", 1)
-                    ls = float(ls)
-                    a = float(a)
-                    ls_s = str(int(ls)) if ls.is_integer() else f"{ls:.2f}"
-                    ls_a = str(int(a)) if a.is_integer() else f"{a:.2f}"
+                    ls_s = numstr(ls)
+                    ls_a = numstr(a) 
                     if i != 0:
                         after += "+"
                     after += f"{MMD_RQK_LATEX}({ls_s},{ls_a})"
@@ -141,3 +137,35 @@ def pretty_label(var_name: str):
         return "batch size"
 
     return var_name
+
+def pretty_prior(prior_choice: str, prior_args: dict):
+    if prior_choice == "invgamma":
+        conc = prior_args.get("concentration", 4)
+        rate = prior_args.get("rate", 1)
+        return f"$\mathrm{{InverseGamma}}({numstr(conc)}, {numstr(rate)})$"
+
+    elif prior_choice == "lognormal":
+        loc = prior_args.get("location", 0.0)
+        scale = prior_args.get("scale", 0.1)
+        return f"$\log\mathcal{{N}}({numstr(loc)}, {numstr(scale)})$"
+
+    elif prior_choice == "normal":
+        loc = prior_args.get("location", 0.0)
+        scale = prior_args.get("scale", 15.0)
+        return f"$\mathcal{{N}}({numstr(loc)}, {numstr(scale)})$"
+
+    elif prior_choice == "halfnormal":
+        scale = prior_args.get("scale", 15.0)
+        return f"$\|\mathcal{{N}}(0, {numstr(scale)})\|$"
+
+    elif prior_choice == "gamma":
+        conc = prior_args.get("concentration", 4)
+        rate = prior_args.get("rate", 1)
+        return f"$\mathrm{{Gamma}}({numstr(conc)}, {numstr(rate)})$"
+
+    elif prior_choice == "uniform":
+        lower = prior_args.get("lower", 0.01)
+        upper = prior_args.get("upper", 0.5)
+        return f"$\mathcal{{U}}({numstr(lower)}, {numstr(upper)})$"
+
+    raise NotImplementedError(f"Unknown prior choice {prior_choice}")
