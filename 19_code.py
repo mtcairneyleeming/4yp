@@ -59,7 +59,7 @@ args = {
 }
 
 state_centroids = load_state_centroids(args["state"])
-coords = centroids_to_coords(state_centroids, args["coord_scaling_factor"])
+coords, coord_means = centroids_to_coords(state_centroids, args["coord_scaling_factor"])
 
 args.update(
     {  # so we can use the definition of n to define x
@@ -83,8 +83,8 @@ args.update(
         "expcode": "19",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
         # MCMC parameters
-        "num_warmup": 40,
-        "num_samples": 160,
+        "num_warmup": 100,
+        "num_samples": 100,
         "thinning": 1,
         "num_chains": 4,
         "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter
