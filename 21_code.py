@@ -9,8 +9,6 @@ import optax
 from jax import random
 from numpyro.infer import Predictive
 import numpyro
-from jax import config
-config.update("jax_disable_jit", True)
 
 numpyro.set_host_device_count(4)
 
@@ -290,7 +288,8 @@ for obs_idx in args["obs_idx_lst"]:
         f,
         {"x": args["x"], "y": args["ground_truth"][obs_idx, 0]},
         verbose=True,
-        max_run_length=None
+        max_run_length=None,
+        use_mixed_hmc=True
     )
     save_samples(
         args["expcode"],

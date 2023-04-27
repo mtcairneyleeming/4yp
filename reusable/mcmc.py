@@ -4,7 +4,7 @@ import numpyro
 import numpyro.distributions as dist
 from .vae import VAE_Decoder
 from .gp import setup_prior
-from numpyro.infer import NUTS, init_to_median, MCMC
+from numpyro.infer import NUTS, init_to_median, MCMC, HMC, MixedHMC
 import time
 
 
@@ -101,11 +101,15 @@ def run_mcmc(
     group_by_chain=False,
     max_run_length=200,
     increment_save_fun=None,
+    use_mixed_hmc=False
 ):
     start = time.time()
 
     init_strategy = init_to_median(num_samples=10)
-    kernel = NUTS(model_mcmc, init_strategy=init_strategy)
+    if use_mixed_hmc:
+        kernel = MixedHMC(HMC(model_mcmc, trajectory_length=1.2, init_strategy=init_strategy))
+    else:
+        kernel = NUTS(model_mcmc, init_strategy=init_strategy)
 
     if max_run_length == None:
         warmup_per = num_warmup
