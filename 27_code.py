@@ -106,7 +106,6 @@ args["loss_fns"] = [
     combo3_loss(RCL, KLD, MMD_rbf(4.0), 1, 1, 10),
     combo3_loss(RCL, KLD, MMD_rbf(8.0), 1, 1, 10),
     combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10),
-    combo3_loss(RCL, KLD, MMD_rbf(8.0), 0.01, 1, 10),
     combo3_loss(RCL, KLD, MMD_rqk(4, 10), 0.1, 1, 10),
 ]
 

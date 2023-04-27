@@ -44,6 +44,10 @@ def get_loss_scores(code: int, exp_name, args_count: int, backcompat_prior_names
     - mmd_kernels: list of string names
     """
     args = load_args(str(code), str(args_count), exp_name)
+    get_loss_scores_from_args(args, backcompat_prior_names)
+
+
+def get_loss_scores_from_args(args, backcompat_prior_names=False):
 
     scores = {"loss_fns": []}
     for loss_fn in args["loss_fn_names"]:
@@ -52,7 +56,7 @@ def get_loss_scores(code: int, exp_name, args_count: int, backcompat_prior_names
         scores["loss_fns"].append(loss_fn)
         s = load_scores(
             args["expcode"],
-            gen_file_name(code, args, (args["experiment"] if "experiment" in args else "") + loss_fn, backcompat_prior_names),
+            gen_file_name(args["expcode"], args, (args["experiment"] if "experiment" in args else "") + loss_fn, backcompat_prior_names),
         )
 
         s["mmd_kernels"] = [x[0] for x in s["mmd"]]

@@ -78,8 +78,24 @@ def pretty_loss_fn_name(loss_fn: str):
     KLD_LATEX = r"\mathrm{KLD}"
     MMD_RBF_LATEX = r"\mathrm{MMD}_\mathrm{rbf}"
     MMD_RQK_LATEX = r"\mathrm{MMD}_\mathrm{rq}"
+    
+
+    if "{}" in loss_fn:
+        a, b = loss_fn.split("{}", 2)
+
+        after = a + ": " if a != "" else ""    
+        loss_fn = b
+        
+    else:
+        after = ""
+        
+
+
+
     parts = loss_fn.split("+")
-    after = ""
+    
+
+
     for i, part in enumerate(parts):
 
         if i > 0:
@@ -112,6 +128,7 @@ def pretty_loss_fn_name(loss_fn: str):
                     if i != 0:
                         after += "+"
                     after += f"{MMD_RQK_LATEX}({ls_s},{ls_a})"
+        
 
     if after == "":
         return loss_fn
