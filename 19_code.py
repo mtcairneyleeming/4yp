@@ -113,7 +113,7 @@ args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
 
-save_args(args["expcode"], "4", args)
+save_args(args["expcode"], "5", args)
 
 
 print(f" index {index}/{len(args['loss_fns']) -1} (0-indexed!)")
