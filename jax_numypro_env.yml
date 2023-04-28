@@ -21,3 +21,4 @@ dependencies:
   - gpytorch=1.10
   - pip:
       - clu
+      - spacv
