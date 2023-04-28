@@ -82,7 +82,8 @@ def plot_on_state(
 
 def plot_multi_on_state(
     datas, state, suptitle, legend_title, titles=None, fig=None, num_in_row=4, edge_highlight_indices=None,
-    points=None
+    points=None,
+    save_file_name=None
 ):
     vmin = jnp.nanmin(datas, None)
     vmax = jnp.nanmax(datas, None)
@@ -161,6 +162,9 @@ def plot_multi_on_state(
     # fig.colorbar(sm, ax=cax, label=legend_title)
     # # fig.colorbar(sm, ax=axs.ravel().tolist(), label=legend_title)
     # fig.suptitle(suptitle, fontsize=20)
+
+    if save_file_name is not None:
+        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=900)
 
 
 def mask_for_plotting(data, visible_indices):

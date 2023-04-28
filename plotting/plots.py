@@ -85,7 +85,9 @@ def quick_compare_draws(
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def compare_draws(x, draws1, draws2, title1, title2, ylabel1, ylabel2, legend_label1, legend_label2, save_path=None, _min=-2, _max=2):
+def compare_draws(
+    x, draws1, draws2, title1, title2, ylabel1, ylabel2, legend_label1, legend_label2, save_path=None, _min=-2, _max=2
+):
 
     # plot results
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 3))
@@ -379,7 +381,21 @@ def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_re
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
-def plot_scores_graph(times, x, curve_labels, x_label, y_label, legend_title, title, is_relative=False, ax=None, save_path=None):
+
+def plot_scores_graph(
+    times,
+    x,
+    curve_labels,
+    x_label,
+    y_label,
+    legend_title,
+    title,
+    is_relative=False,
+    ax=None,
+    save_path=None,
+    num_decimals=0,
+    plot_range=None
+):
     x = onp.array(x)
     if ax is None:
         fig = plt.figure(figsize=(6, 4))
@@ -392,14 +408,25 @@ def plot_scores_graph(times, x, curve_labels, x_label, y_label, legend_title, ti
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
+    if plot_range is None:
+        quant = onp.nanpercentile(times, 90, axis=None)
+        m = onp.nanmax(times, axis=None)
+        if quant < 0.4 * m:
+            top = quant
+        else:
+            top = m
+        plot_range = [0, 1.2* top]
+    print(title, x_label, plot_range)
+    
+    ax.set_ylim(plot_range)
     ax.set_title(title)
-    ax.legend(title=legend_title, loc="upper left")
+    ax.legend(title=legend_title, loc="upper right")
 
     if is_relative:
-        ax.yaxis.set_major_formatter("{x:+.0f}")
+        ax.yaxis.set_major_formatter(f"{{x:+.{num_decimals}f}}")
     else:
-        ax.yaxis.set_major_formatter("{x:.0f}")
-        
+        ax.yaxis.set_major_formatter(f"{{x:.{num_decimals}f}}")
+
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
@@ -415,7 +442,7 @@ def plot_times_matrix(mat, yticks, xticks, ylabel, xlabel, title, upper_limit=No
     if upper_limit is not None:
         current_cmap.set_over("orange")
     if upper_limit is not None:
-        vmax = min(1.1*onp.nanmax(mat), upper_limit)
+        vmax = min(1.1 * onp.nanmax(mat), upper_limit)
     else:
         vmax = None
     plotted = ax.matshow(mat, cmap=current_cmap, vmax=vmax)
@@ -427,7 +454,38 @@ def plot_times_matrix(mat, yticks, xticks, ylabel, xlabel, title, upper_limit=No
     ax.set_xticks(onp.arange(0, len(xticks)), xticks)
     ax.set_yticks(onp.arange(0, len(yticks)), yticks)
 
-    fig.colorbar(plotted, ax=ax,  extend='max')
+    fig.colorbar(plotted, ax=ax, extend="max")
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+def plot_score_contours(mat, yticks, xticks, ylabel, xlabel, title, upper_limit=None, fig=None, save_path=None):
+    if fig is None:
+        fig = plt.figure()
+
+    ax = fig.add_subplot()
+
+    current_cmap = plt.get_cmap()
+    current_cmap.set_bad(color="red")
+    if upper_limit is not None:
+        current_cmap.set_over("orange")
+    if upper_limit is not None:
+        vmax = min(1.1 * onp.nanmax(mat), upper_limit)
+    else:
+        vmax = None
+
+    plotted = ax.contourf(mat, corner_mask=True)
+    ax.contour(plotted, cmap=current_cmap, vmax=vmax)
+
+    ax.xaxis.set_label_position("bottom")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(onp.arange(0, len(xticks)), xticks)
+    ax.set_yticks(onp.arange(0, len(yticks)), yticks)
+
+    fig.colorbar(plotted, ax=ax, extend="max")
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
