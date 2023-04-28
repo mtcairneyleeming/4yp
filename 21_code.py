@@ -271,14 +271,7 @@ for obs_idx in args["obs_idx_lst"]:
 
     rng_key, rng_key_mcmc = random.split(rng_key, 2)
 
-    from reusable.gp import BuildGP_Binomial
-    from reusable.kernels import esq_kernel
-    import numpyro
-    import jax.numpy as jnp
 
-    with numpyro.handlers.seed(rng_seed=1):
-        trace = numpyro.handlers.trace(f).get_trace(x = jnp.arange(0, 1, 100), y= args["ground_truth"][obs_idx, 0])
-    print(numpyro.util.format_shapes(trace))
 
     mcmc_samples = run_mcmc(
         args["num_warmup"],
