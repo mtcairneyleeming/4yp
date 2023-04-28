@@ -60,8 +60,8 @@ args.update(
         # learning
         "num_epochs": 50,
         "learning_rate": 1.0e-3,
-        "batch_size": 400,
-        "train_num_batches": 200,
+        "batch_size": 800,
+        "train_num_batches": 100,
         "test_num_batches": 2,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
@@ -75,7 +75,7 @@ args.update(
         "num_samples": 4000,
         "thinning": 1,
         "num_chains": 4,
-        "binomial_N": 50,
+        "binomial_N": 20,
     }
 )
 
@@ -103,7 +103,7 @@ args["obs_idx_lst"] = [[22, 50], [16, 33, 57, 96], [8, 24, 45, 61, 77, 84]]
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
 
-save_args(args["expcode"], "2", args)
+save_args(args["expcode"], "3", args)
 
 
 print(f" index {index}/{len(args['loss_fns']) -1} (0-indexed!)")

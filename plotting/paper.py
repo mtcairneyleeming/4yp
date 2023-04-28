@@ -74,7 +74,7 @@ def get_trained_draws(
     file_back_compat=None,
     include_standard_vae=False,
     include_gp=True,
-    single_decoder=False,
+    use_single_decoder=False,
     leaky_relu=True,
     filter_loss_fns=None,
     gp_builder=None,
@@ -82,13 +82,13 @@ def get_trained_draws(
 ):
     return get_trained_draws_from_args(
         load_args(str(code), str(args_count), exp_name),
-        file_back_compat,
-        include_standard_vae,
-        include_gp,
-        single_decoder,
-        leaky_relu,
-        filter_loss_fns,
-        gp_builder,
+        file_back_compat=file_back_compat,
+        include_standard_vae=include_standard_vae,
+        include_gp=include_gp,
+        use_single_decoder=use_single_decoder,
+        leaky_relu=leaky_relu,
+        filter_loss_fns=filter_loss_fns,
+        gp_builder=gp_builder,
     )
 
 
@@ -97,7 +97,7 @@ def get_trained_draws_from_args(
     file_back_compat=None,
     include_standard_vae=False,
     include_gp=True,
-    single_decoder=False,
+    use_single_decoder=False,
     leaky_relu=True,
     filter_loss_fns=None,
     gp_builder=None,
@@ -156,7 +156,7 @@ def get_trained_draws_from_args(
             leaky=leaky_relu,
         )
 
-        if single_decoder:
+        if use_single_decoder:
             single_decoder = Single_Decoder(
                 hidden_dim1=args["hidden_dim1"], hidden_dim2=args["hidden_dim2"], out_dim=args["n"], leaky=leaky_relu
             )
@@ -165,7 +165,7 @@ def get_trained_draws_from_args(
         tx = optax.adam(args["learning_rate"])
         state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
 
-        if single_decoder:
+        if use_single_decoder:
             params = single_decoder.init(rng_key, jnp.ones((args["n"] + args["latent_dim"],)))["params"]
 
             dec_state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
@@ -176,7 +176,8 @@ def get_trained_draws_from_args(
                 load_training_state("16", gen_file_name("16", standard_args, "exp1" + loss_fn, "A"), state)
             )
         else:
-            if single_decoder:
+            if use_single_decoder: 
+
 
                 decoder_params = get_model_params(
                     load_training_state(
@@ -204,7 +205,7 @@ def get_trained_draws_from_args(
                     )
                 )
 
-        vae_predictive = Predictive(decoder_sample if single_decoder else vae_sample, num_samples=5000)
+        vae_predictive = Predictive(decoder_sample if use_single_decoder else vae_sample, num_samples=5000)
         vae_draws = vae_predictive(
             rng_key_predict,
             hidden_dim1=args["hidden_dim1"],
@@ -343,13 +344,14 @@ def plot_simple_draws(
     args_disambig,
     file_compat,
     include_standard_vae=False,
-    single_decoder=False,
+    use_single_decoder=False,
     leaky_relu=True,
     filter=None,
     gp_builder=None,
+    plot_range=None,
 ):
     draws, args = get_trained_draws(
-        code, exp_name, args_disambig, file_compat, include_standard_vae, single_decoder, leaky_relu, filter, gp_builder
+        code, exp_name, args_disambig, file_back_compat=file_compat, include_standard_vae=include_standard_vae, use_single_decoder=use_single_decoder, leaky_relu=leaky_relu, filter_loss_fns=filter, gp_builder=gp_builder
     )
     plot_trained_draws(
         draws,
@@ -357,4 +359,5 @@ def plot_simple_draws(
         *calc_plot_dimensions(args, True),
         f"/{code}/{code}_{exp_name}_{args_disambig}",
         backfill="align_right",
+        plot_range=plot_range
     )
