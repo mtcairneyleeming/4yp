@@ -101,21 +101,30 @@ def run_mcmc(
     group_by_chain=False,
     max_run_length=200,
     increment_save_fun=None,
-    use_mixed_hmc=False
+    use_mixed_hmc=False,
 ):
     start = time.time()
 
     init_strategy = init_to_median(num_samples=10)
     if use_mixed_hmc:
-        kernel = MixedHMC(HMC(model_mcmc, trajectory_length=1.2, init_strategy=init_strategy))
+        kernel = MixedHMC(HMC(model_mcmc, init_strategy=init_strategy))
     else:
         kernel = NUTS(model_mcmc, init_strategy=init_strategy)
 
     if max_run_length == None:
-        warmup_per = num_warmup
-        samples_per = num_samples
-        warmup_runs = 1
-        sample_runs = 1
+        mcmc = MCMC(
+            kernel,
+            num_warmup=num_warmup,
+            num_samples=num_samples,
+            num_chains=num_chains,
+            thinning=thinning,
+            jit_model_args=True,
+            progress_bar=True,
+        )
+        mcmc.run(rng_key, **mcmc_arguments)
+        if verbose:
+            mcmc.print_summary(exclude_deterministic=False)
+
     else:
         assert (
             num_warmup % max_run_length == 0 and num_samples % max_run_length == 0
@@ -125,29 +134,29 @@ def run_mcmc(
         warmup_runs = num_warmup // max_run_length
         sample_runs = num_samples // max_run_length
 
-    mcmc = MCMC(
-        kernel,
-        num_warmup=warmup_per,
-        num_samples=samples_per,
-        num_chains=num_chains,
-        thinning=thinning,
-        jit_model_args=True,
-        progress_bar=True,
-    )
+        mcmc = MCMC(
+            kernel,
+            num_warmup=warmup_per,
+            num_samples=samples_per,
+            num_chains=num_chains,
+            thinning=thinning,
+            jit_model_args=True,
+            progress_bar=True,
+        )
 
-    for i in range(warmup_runs):
-        mcmc.warmup(rng_key, **mcmc_arguments)
-        print(f"Done MCMC warmup run {i+1}/{warmup_runs}", flush=True)
+        for i in range(warmup_runs):
+            mcmc.warmup(rng_key, **mcmc_arguments)
+            print(f"Done MCMC warmup run {i+1}/{warmup_runs}", flush=True)
 
-    for i in range(sample_runs):
-        mcmc.run(rng_key, **mcmc_arguments)
-        print(f"Done MCMC run {i+1}/{sample_runs}", flush=True)
-        if increment_save_fun is not None:
-            increment_save_fun(i, mcmc.get_samples(group_by_chain=group_by_chain))
-        if verbose: # and i> 4 and  i % 5 == 0:
-            mcmc.print_summary(exclude_deterministic=False)
+        for i in range(sample_runs):
+            mcmc.run(rng_key, **mcmc_arguments)
+            print(f"Done MCMC run {i+1}/{sample_runs}", flush=True)
+            if increment_save_fun is not None:
+                increment_save_fun(i, mcmc.get_samples(group_by_chain=group_by_chain))
+            if verbose:  # and i> 4 and  i % 5 == 0:
+                mcmc.print_summary(exclude_deterministic=False)
 
-    if verbose:
+        if verbose:
             mcmc.print_summary(exclude_deterministic=False)
 
     print("\nMCMC elapsed time:", time.time() - start)
