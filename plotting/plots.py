@@ -62,7 +62,6 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
-    return ax
 
 
 def quick_compare_draws(
