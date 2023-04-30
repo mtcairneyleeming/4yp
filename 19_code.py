@@ -291,10 +291,16 @@ mcmc_samples = run_mcmc(
     f,
     {"x": args["x"], "y": args["ground_truth_y_obs"]},
     verbose=True,
-    max_run_length=None if not using_gp else 100,
-    increment_save_fun=lambda i, x: save_samples(
-    args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_intermed_{i}_mcmc", include_mcmc=True), x
-)
+    max_run_length=100  if using_gp else None,
+    increment_save_fun=(
+        lambda i, x: save_samples(
+            args["expcode"],
+            gen_file_name(args["expcode"], args, f"inference_{label}_intermed_{i}_mcmc", include_mcmc=True),
+            x,
+        )
+    )
+    if using_gp
+    else None,
 )
 save_samples(
     args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_mcmc", include_mcmc=True), mcmc_samples
