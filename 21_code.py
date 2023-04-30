@@ -13,7 +13,7 @@ import numpyro
 numpyro.set_host_device_count(4)
 
 from reusable.data import gen_gp_batches
-from reusable.gp import BuildGP_Binomial
+from reusable.gp import BuildGP_Poisson
 from reusable.kernels import esq_kernel
 from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD
 from reusable.train_nn import SimpleTrainState, run_training_shuffle
@@ -75,12 +75,10 @@ args.update(
         "num_samples": 4000,
         "thinning": 1,
         "num_chains": 4,
-        "binomial_N": 20,
     }
 )
 
-gt_gp = BuildGP_Binomial(
-    args["binomial_N"],
+gt_gp = BuildGP_Poisson(
     args["gp_kernel"],
     noise=True,
     length_prior_choice=args["length_prior_choice"],
@@ -282,7 +280,7 @@ for obs_idx in args["obs_idx_lst"]:
         {"x": args["x"], "y": args["ground_truth"][obs_idx, 0]},
         verbose=True,
         max_run_length=None,
-        use_mixed_hmc=True
+        use_mixed_hmc=False
     )
     save_samples(
         args["expcode"],

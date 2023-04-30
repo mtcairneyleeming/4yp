@@ -208,8 +208,7 @@ def OneDGP_UnifLS(gp_kernel, x, jitter=2e-5, var=None, length=None, y=None, nois
     return y
 
 
-def BuildGP_Binomial(
-    N,
+def BuildGP_Cauchy(
     gp_kernel,
     jitter=2e-5,
     obs_idx=None,
@@ -221,7 +220,7 @@ def BuildGP_Binomial(
 ):
     length_prior = setup_prior(length_prior_choice, length_prior_args)
     variance_prior = setup_prior(variance_prior_choice, variance_prior_args)
-    # -1.3418452 0.21973312
+
     def func(x, var=None, length=None, y=None, **kwargs):
         """The original, basic GP, with the length sampled from a fixed prior"""
         if length == None:
@@ -234,8 +233,6 @@ def BuildGP_Binomial(
 
         length = jnp.array(length).reshape(1)
 
-        
-        # the gp
         f = numpyro.sample(
             "f",
             dist.TransformedDistribution(
@@ -244,29 +241,31 @@ def BuildGP_Binomial(
             ),
         )
 
-        probs = numpyro.deterministic("p", jnp.exp(f) / (1 + jnp.exp(f)))
+        rates = numpyro.deterministic("p", jnp.exp(f))
 
-    
-        with numpyro.plate("y_plate", 1):
-            if noise == False:
-                y = numpyro.sample("y", dist.Binomial(N, probs=probs), obs=y)
+        if noise == False:
+            y = numpyro.sample("y", dist.Pareto(rates), obs=y)
+        else:
+
+            g = numpyro.sample("g", dist.Poisson(rates))
+            sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+
+            if obs_idx is not None:  # in this case y will be lower dimension, and observed - unsurprisingly!
+                y = numpyro.sample("y", dist.Normal(g[obs_idx], sigma), obs=y)
             else:
-                sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
-                g = numpyro.sample("g", dist.Binomial(N, probs=probs))
-
-                if obs_idx is not None:  # in this case y will be lower dimension, and observed - unsurprisingly!
-                    y = numpyro.sample("y", dist.Normal(g[obs_idx], sigma), obs=y)
-                else:
-                    y = numpyro.sample("y", dist.Normal(g, sigma), obs=y)
-
-            # y_c = numpyro.deterministic("y_c", jnp.concatenate([y, length], axis=0))
+                y = numpyro.sample("y", dist.Normal(g, sigma), obs=y)
 
         return y
 
     return func
 
+
 def BuildGP_Gumbel(
-    gp_kernel, jitter=2e-5, obs_idx=None, noise=False, length_prior_choice="invgamma",
+    gp_kernel,
+    jitter=2e-5,
+    obs_idx=None,
+    noise=False,
+    length_prior_choice="invgamma",
     length_prior_args={},
     variance_prior_choice="lognormal",
     variance_prior_args={},
@@ -275,11 +274,11 @@ def BuildGP_Gumbel(
 ):
     length_prior = setup_prior(length_prior_choice, length_prior_args)
     variance_prior = setup_prior(variance_prior_choice, variance_prior_args)
-    
+
     scale_prior = setup_prior(scale_prior_choice, scale_prior_args)
 
     # -1.3418452 0.21973312
-    def func(x, var=None, length=None, scale=None, y=None , **kwargs):
+    def func(x, var=None, length=None, scale=None, y=None, **kwargs):
         """The original, basic GP, with the length sampled from a fixed prior"""
         if length == None:
             length = numpyro.sample("kernel_length", length_prior)
@@ -303,14 +302,11 @@ def BuildGP_Gumbel(
             ),
         )
 
-
-
-
         if noise == False:
             y = numpyro.sample("y", dist.Gumbel(jnp.repeat(scale, f.shape[0]), f), obs=y)
         else:
             sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
-            g = numpyro.sample("g",  dist.Gumbel(jnp.repeat(scale, f.shape[0]), f))
+            g = numpyro.sample("g", dist.Gumbel(f, jnp.repeat(scale, f.shape[0])))
 
             if obs_idx is not None:
                 y = numpyro.sample("y", dist.Normal(g[obs_idx], sigma), obs=y)
@@ -322,4 +318,3 @@ def BuildGP_Gumbel(
         return y
 
     return func
-
