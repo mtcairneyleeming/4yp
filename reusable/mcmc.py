@@ -111,6 +111,8 @@ def run_mcmc(
     else:
         kernel = NUTS(model_mcmc, init_strategy=init_strategy)
 
+    print(f"MCMC: max_run_length: {max_run_length}")
+
     if max_run_length == None:
         mcmc = MCMC(
             kernel,

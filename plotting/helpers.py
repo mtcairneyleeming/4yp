@@ -60,14 +60,21 @@ def calc_plot_dimensions(args, include_gp=False):
 
 
 def clear_unused_axs(axs, mapping, total):
-    if len(axs.shape) == 1:
+    try:
+        s = axs.shape
+        flat = axs.flat
+    except AttributeError:
+        s = axs.get_geometry()
+        flat = axs
+
+    if len(s) == 1 or s[0] == 1:
         return 
-    num_rows, num_cols = axs.shape
+    num_rows, num_cols = s
 
     used_axes = [mapping(i) for i in range(total)]
     for i in range(num_cols * num_rows):
         if i not in used_axes:
-            axs.flat[i].remove()
+            flat[i].remove()
 
 def numstr(s:str):
     s = float(s)

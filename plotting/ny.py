@@ -6,6 +6,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from reusable.geo import load_state_boundaries
 from mpl_toolkits.axes_grid1 import AxesGrid
 from shapely.geometry import Point
+from plotting.helpers import (
+    align_left_backfill,
+    align_right_backfill,
+    calc_plot_dimensions,
+    clear_unused_axs,
+    align_right_backfill_with_gp,
+    pretty_loss_fn_name,
+)
 
 class StateLoader(object):
     states = {}
@@ -22,15 +30,16 @@ loader = StateLoader()
 def plot_on_state(
     data,
     state,
-    title,
     legend_title,
+    title,
     ax=None,
     vmin=None,
     vmax=None,
     cmap=None,
     show_colorbar=True,
     edge_highlight_indices=None,
-    points_to_plot=None
+    points_to_plot=None,
+    save_file_name=None, 
 ):
 
     ax_was_none = ax is None
@@ -73,17 +82,18 @@ def plot_on_state(
     if edge_highlight_indices is not None:
         newframe.loc[edge_highlight_indices].plot(ax=ax, facecolor="none", edgecolor="red", linewidth=0.5)
 
-
-    
-  
-
     ax.set_axis_off()
+
+    if ax_was_none and  save_file_name is not None:
+        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=900)
 
 
 def plot_multi_on_state(
-    datas, state, suptitle, legend_title, titles=None, fig=None, num_in_row=4, edge_highlight_indices=None,
+    datas, state,  legend_title, suptitle=None, titles=None, fig=None, num_in_row=4, edge_highlight_indices=None,
     points=None,
-    save_file_name=None
+    save_file_name=None, 
+    backfill=None,
+    show_cbar=True
 ):
     vmin = jnp.nanmin(datas, None)
     vmax = jnp.nanmax(datas, None)
@@ -93,8 +103,23 @@ def plot_multi_on_state(
 
     num_rows = (datas.shape[0] + num_in_row - 1) // num_in_row
 
+    match backfill:
+        case None:
+            mapping = lambda i: i
+        case "align_left":
+            mapping = align_left_backfill(len(datas), num_rows, num_in_row)
+        case "align_right":
+            mapping = align_right_backfill(len(datas), num_rows, num_in_row)
+
+    print(num_rows, num_in_row)
+
     if fig is None:
         fig = plt.figure(figsize=(num_in_row * 6, num_rows * 6))
+
+    if suptitle is not None:
+        fig.suptitle(suptitle)
+
+    
 
     axs = AxesGrid(
         fig,
@@ -103,10 +128,12 @@ def plot_multi_on_state(
         label_mode="L",
         share_all=True,
         cbar_location="right",
-        cbar_mode="single",
-        cbar_size="7%",
+        cbar_mode="single" if show_cbar else None,
+        cbar_size="5%",
         cbar_pad="2%",
+        axes_pad=(0.02, 0.08)
     )
+    
 
     cmap = plt.get_cmap()
     cmap.set_bad(color="red")
@@ -122,9 +149,9 @@ def plot_multi_on_state(
         plot_on_state(
             datas[i],
             state,
-            title,
             None,
-            ax=axs[i],
+            title,
+            ax=axs[mapping(i)],
             vmin=vmin,
             vmax=vmax,
             cmap=cmap,
@@ -133,35 +160,17 @@ def plot_multi_on_state(
             points_to_plot = points[i]
         )
 
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+    if show_cbar:
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
 
-    # fake up the array of the scalar mappable. Urgh...
-    sm._A = []
+        # fake up the array of the scalar mappable. Urgh...
+        sm._A = []
 
-    # fig.colorbar(sm, ax=cax, label=legend_title)
 
-    axs.cbar_axes[0].colorbar(sm, label=legend_title)
-    # axs = fig.subplots(num_rows, num_in_row, squeeze=False)
+        axs.cbar_axes[0].colorbar(sm, label=legend_title)
+ 
 
-    # divider = make_axes_locatable(axs.flat)
-    # cax = divider.append_axes("right", size="5%", pad=0.001)
-
-    # cmap = plt.get_cmap()
-    # cmap.set_bad(color="red")
-
-    # for i in range(datas.shape[0]):
-    #     title = titles[i] if titles is not None else None
-
-    #     plot_on_state(datas[i], state, title, None, ax=axs.flat[i], vmin=vmin, vmax=vmax, cmap=cmap, show_colorbar=False, edge_highlight_indices=edge_highlight_indices)
-    # print(axs.shape)
-    # sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
-
-    # # fake up the array of the scalar mappable. Urgh...
-    # sm._A = []
-
-    # fig.colorbar(sm, ax=cax, label=legend_title)
-    # # fig.colorbar(sm, ax=axs.ravel().tolist(), label=legend_title)
-    # fig.suptitle(suptitle, fontsize=20)
+    clear_unused_axs(axs, mapping, len(datas))
 
     if save_file_name is not None:
         fig.savefig("gen_plots/" + save_file_name + ".png", dpi=900)

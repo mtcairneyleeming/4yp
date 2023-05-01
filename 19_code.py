@@ -7,6 +7,8 @@ import jax.numpy as jnp
 import jax.random as random
 import optax
 from jax import random
+import spacv
+import numpy as onp
 from numpyro.infer import Predictive
 import numpyro
 
@@ -30,7 +32,7 @@ from reusable.util import (
     save_samples,
 )
 from reusable.vae import VAE, vae_sample
-from reusable.geo import load_state_centroids, centroids_to_coords, get_temp_data
+from reusable.geo import load_state_centroids, centroids_to_coords, get_processed_temp_data
 from reusable.mcmc import vae_mcmc, run_mcmc
 from reusable.scoring import calc_correlation_mats, calc_frob_norms, calc_mmd_scores, calc_moments
 
@@ -38,11 +40,13 @@ pre_generated_data = len(sys.argv) > 2 and sys.argv[2] == "load_generated"
 
 pre_trained = len(sys.argv) > 2 and sys.argv[2] == "pre_trained"
 
+skip_scores = len(sys.argv) > 3 and sys.argv[3] == "skip_scores"
+
 on_arc = "SLURM_JOBID" in os.environ
 
 index = int(sys.argv[1])
 
-print(f"Starting 19, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}", flush=True)
+print(f"Starting 19, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}, skip_scores={skip_scores}", flush=True)
 setup_signals()
 
 
@@ -83,37 +87,51 @@ args.update(
         "expcode": "19",
         "loss_fns": [None, combo_loss(RCL, KLD), combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10)],
         # MCMC parameters
-        "num_warmup": 0,
-        "num_samples": 400,
+        "num_warmup": 1000,
+        "num_samples": 4000,
         "thinning": 1,
         "num_chains": 4,
-        "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter
+        "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter,
+        "num_cv_splits": 5,
+        "obs_fracs": [0.01, 0.05, 0.10, 0.2, 0.3],
+        "observations_rng_key": random.PRNGKey(123456789),
     }
 )
 
 
-ground_truth_df = get_temp_data(args["state"], args["year"], args["aggr_method"])
+args["ground_truth"], args["temp_mean_offset"] = get_processed_temp_data(
+    args["state"], args["year"], args["aggr_method"]
+)
 
-args["ground_truth"] = ground_truth_df["tmean"].to_numpy()
-args["ground_truth"] = args["ground_truth"] - jnp.mean(args["ground_truth"])
+rng_key_observations, rng_key_spatial_cv = random.split(args["observations_rng_key"], 2)
 
-rng_key_ground_truth_obs_mask = random.PRNGKey(41234)
+obs_idx_lst = []
+titles_list = []
 
+for i, frac in enumerate(args["obs_fracs"]):
+    num_obs = int(frac * args["n"])
+    obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"] - num_obs), False)))
+    obs_mask = random.permutation(random.fold_in(rng_key_observations, i), obs_mask)
 
-num_obs = int(args["n"] * 0.25)
+    obs_idx_lst.append(jnp.array([x for x in range(args["n"]) if obs_mask[x] == True]))
+    titles_list.append(f"{num_obs} ({int(args['obs_fracs'][i]*100)}%) randomly chosen observations ")
 
+skcv = spacv.SKCV(n_splits=args["num_cv_splits"], random_state=onp.random.RandomState(rng_key_spatial_cv)).split(
+    state_centroids["geometry"]
+)
 
-obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"] - num_obs), False)))
-obs_mask = random.permutation(rng_key_ground_truth_obs_mask, obs_mask)
-
-args["obs_idx"] = jnp.array([x for x in range(args["n"]) if obs_mask[x] == True])
-
-args["ground_truth_y_obs"] = args["ground_truth"][args["obs_idx"]]
+scv_masks = []
+for i, (train, test) in enumerate(skcv):
+    train = train[:-1]
+    assert train.size + test.size == args["n"] and jnp.array_equiv(
+        jnp.sort(jnp.concatenate((train, test))), jnp.arange(args["n"])
+    )
+    obs_idx_lst.append(jnp.array(train))
 
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
 
-save_args(args["expcode"], "5", args)
+save_args(args["expcode"], "6", args)
 
 
 print(f" index {index}/{len(args['loss_fns']) -1} (0-indexed!)")
@@ -220,7 +238,7 @@ if not using_gp:
 rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)
 
 
-if not using_gp:
+if not using_gp and not skip_scores:
     print("Drawing from GP", flush=True)
 
     gp_predictive = Predictive(gp, num_samples=args["scoring_num_draws"])
@@ -256,52 +274,55 @@ if not using_gp:
     )
 
 
-f = (
-    BuildGP(
-        args["gp_kernel"],
-        noise=True,
-        length_prior_choice=args["length_prior_choice"],
-        length_prior_args=args["length_prior_arguments"],
-        variance_prior_choice=args["variance_prior_choice"],
-        variance_prior_args=args["variance_prior_arguments"],
-        obs_idx=args["obs_idx"],
-    )
-    if using_gp
-    else vae_mcmc(
-        args["hidden_dim1"],
-        args["hidden_dim2"],
-        args["latent_dim"],
-        args["decoder_params"],
-        obs_idx=args["obs_idx"],
-        noise=True,
-    )
-)
-
 label = "gp" if using_gp else f"{loss_fn.__name__}"
 
 
 rng_key, rng_key_mcmc = random.split(rng_key, 2)
 
-
-mcmc_samples = run_mcmc(
-    args["num_warmup"],
-    args["num_samples"],
-    args["num_chains"],
-    rng_key_mcmc,
-    f,
-    {"x": args["x"], "y": args["ground_truth_y_obs"]},
-    verbose=True,
-    max_run_length=100  if using_gp else None,
-    increment_save_fun=(
-        lambda i, x: save_samples(
-            args["expcode"],
-            gen_file_name(args["expcode"], args, f"inference_{label}_intermed_{i}_mcmc", include_mcmc=True),
-            x,
+for i, obs_idx in enumerate(obs_idx_lst):
+    f = (
+        BuildGP(
+            args["gp_kernel"],
+            noise=True,
+            length_prior_choice=args["length_prior_choice"],
+            length_prior_args=args["length_prior_arguments"],
+            variance_prior_choice=args["variance_prior_choice"],
+            variance_prior_args=args["variance_prior_arguments"],
+            obs_idx=obs_idx,
+        )
+        if using_gp
+        else vae_mcmc(
+            args["hidden_dim1"],
+            args["hidden_dim2"],
+            args["latent_dim"],
+            args["decoder_params"],
+            obs_idx=obs_idx,
+            noise=True,
         )
     )
-    if using_gp
-    else None,
-)
-save_samples(
-    args["expcode"], gen_file_name(args["expcode"], args, f"inference_{label}_mcmc", include_mcmc=True), mcmc_samples
-)
+    mcmc_samples = run_mcmc(
+        args["num_warmup"],
+        args["num_samples"],
+        args["num_chains"],
+        random.fold_in(rng_key_mcmc, i),
+        f,
+        {"x": args["x"], "y": args["ground_truth"][obs_idx]},
+        verbose=True,
+        max_run_length=100 if using_gp else None,
+        increment_save_fun=(
+            lambda j, x: save_samples(
+                args["expcode"],
+                gen_file_name(
+                    args["expcode"], args, f"inference_{label}_split{i}_intermed_{j}_mcmc", include_mcmc=True
+                ),
+                x,
+            )
+        )
+        if using_gp
+        else None,
+    )
+    save_samples(
+        args["expcode"],
+        gen_file_name(args["expcode"], args, f"inference_{label}_split{i}_mcmc", include_mcmc=True),
+        mcmc_samples,
+    )
