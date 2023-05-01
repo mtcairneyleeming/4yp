@@ -3,7 +3,7 @@ import jax.numpy as jnp
 from .tables import html_table, latex_table
 import pandas
 from .helpers import pretty_loss_fn_name
-
+import numpy as onp
 
 def merge_dicts(a: dict, b: dict, expand=True):
     for key, val in b.items():
@@ -29,13 +29,13 @@ def get_gp_moments():
     args = load_args("16", str(1), "exp1")
     scores = load_scores(
         "16",
-        gen_file_name("16", args, args["experiment"] + args["loss_fn_names"][0]),
+        gen_file_name("16", args, args["experiment"] + args["loss_fn_names"][0], "B"),
     )
 
     return jnp.array([jnp.mean(x) for x in scores["gp_moments"]])
 
 
-def get_loss_scores(code: int, exp_name, args_count: int, backcompat_prior_names=False):
+def get_loss_scores(code: int, exp_name, args_count: int, back_compat_file_names):
     """Given the raw data (which is v. oddly formatted), return a dictionary of lists:
     - loss_fns
     - frobenius: items: array of length num_orders_calced
@@ -44,10 +44,10 @@ def get_loss_scores(code: int, exp_name, args_count: int, backcompat_prior_names
     - mmd_kernels: list of string names
     """
     args = load_args(str(code), str(args_count), exp_name)
-    get_loss_scores_from_args(args, backcompat_prior_names)
+    return get_loss_scores_from_args(args, back_compat_file_names)
 
 
-def get_loss_scores_from_args(args, backcompat_prior_names=False):
+def get_loss_scores_from_args(args, back_compat_file_names):
 
     scores = {"loss_fns": []}
     for loss_fn in args["loss_fn_names"]:
@@ -56,7 +56,7 @@ def get_loss_scores_from_args(args, backcompat_prior_names=False):
         scores["loss_fns"].append(loss_fn)
         s = load_scores(
             args["expcode"],
-            gen_file_name(args["expcode"], args, (args["experiment"] if "experiment" in args else "") + loss_fn, backcompat_prior_names),
+            gen_file_name(args["expcode"], args, (args["experiment"] if "experiment" in args else "") + loss_fn, back_compat_file_names),
         )
 
         s["mmd_kernels"] = [x[0] for x in s["mmd"]]
@@ -71,6 +71,32 @@ def get_loss_scores_from_args(args, backcompat_prior_names=False):
 
     return scores
 
+
+def show_score_matrix(code, exp_name, args_count, back_compat_file_names, matrix_dims, x_labels, y_labels):
+    scores = get_loss_scores(code, exp_name, args_count,back_compat_file_names )
+    data = jnp.mean(scores["mmd"], axis=1).reshape(matrix_dims)
+
+    print(onp.reshape(scores["loss_fns"], matrix_dims))
+
+    html_table(
+        data,
+        pandas.Index(x_labels),
+        pandas.Index(y_labels),
+        None,
+        False,
+        True,
+        False
+    )
+    latex_table(
+        data,
+        pandas.Index(x_labels),
+        pandas.Index(y_labels),
+        f"./gen_plots/{code}/tables/{code}_{exp_name}_{args_count}_mmd_mat_table.tex",
+        None,
+        False,
+        True,
+        False
+    )
 
 def show_loss_scores(code, exp_name, args_count):
 
