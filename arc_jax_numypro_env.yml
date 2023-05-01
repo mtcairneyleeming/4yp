@@ -19,4 +19,4 @@ dependencies:
   - pip
   - pip:
       - clu
-      - spacv
+      - git+https://github.com/mtcairneyleeming/spacv@412a790
