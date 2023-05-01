@@ -85,7 +85,7 @@ def plot_on_state(
     ax.set_axis_off()
 
     if ax_was_none and  save_file_name is not None:
-        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=900)
+        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=300)
 
 
 def plot_multi_on_state(
@@ -173,7 +173,7 @@ def plot_multi_on_state(
     clear_unused_axs(axs, mapping, len(datas))
 
     if save_file_name is not None:
-        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=900)
+        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=300)
 
 
 def mask_for_plotting(data, visible_indices):
