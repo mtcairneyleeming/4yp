@@ -35,6 +35,7 @@ from reusable.vae import VAE, vae_sample
 from reusable.geo import load_state_centroids, centroids_to_coords, get_processed_temp_data
 from reusable.mcmc import vae_mcmc, run_mcmc
 from reusable.scoring import calc_correlation_mats, calc_frob_norms, calc_mmd_scores, calc_moments
+from reusable.split import calculate_obs_fracs, calculate_spatial_cv
 
 pre_generated_data = len(sys.argv) > 2 and sys.argv[2] == "load_generated"
 
@@ -46,7 +47,10 @@ on_arc = "SLURM_JOBID" in os.environ
 
 index = int(sys.argv[1])
 
-print(f"Starting 19, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}, skip_scores={skip_scores}", flush=True)
+print(
+    f"Starting 19, index={index}, pre_gen: {pre_generated_data}, pre_trained={pre_trained}, skip_scores={skip_scores}",
+    flush=True,
+)
 setup_signals()
 
 
@@ -105,28 +109,9 @@ args["ground_truth"], args["temp_mean_offset"] = get_processed_temp_data(
 
 rng_key_observations, rng_key_spatial_cv = random.split(args["observations_rng_key"], 2)
 
-obs_idx_lst = []
-titles_list = []
-
-for i, frac in enumerate(args["obs_fracs"]):
-    num_obs = int(frac * args["n"])
-    obs_mask = jnp.concatenate((jnp.full((num_obs), True), jnp.full((args["n"] - num_obs), False)))
-    obs_mask = random.permutation(random.fold_in(rng_key_observations, i), obs_mask)
-
-    obs_idx_lst.append(jnp.array([x for x in range(args["n"]) if obs_mask[x] == True]))
-    titles_list.append(f"{num_obs} ({int(args['obs_fracs'][i]*100)}%) randomly chosen observations ")
-
-skcv = spacv.SKCV(n_splits=args["num_cv_splits"], random_state=onp.random.RandomState(rng_key_spatial_cv)).split(
-    state_centroids["geometry"]
+obs_idx_lst = calculate_obs_fracs(args["obs_fracs"], args["n"], rng_key_observations) + calculate_spatial_cv(
+    args["num_cv_splits"], state_centroids["geometry"], args["n"], rng_key_spatial_cv
 )
-
-scv_masks = []
-for i, (train, test) in enumerate(skcv):
-    train = train[:-1]
-    assert train.size + test.size == args["n"] and jnp.array_equiv(
-        jnp.sort(jnp.concatenate((train, test))), jnp.arange(args["n"])
-    )
-    obs_idx_lst.append(jnp.array(train))
 
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
