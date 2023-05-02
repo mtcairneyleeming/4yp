@@ -30,8 +30,8 @@ module load Mamba # note we are not using Mamba to build the environment, we jus
 source activate $CONDA_PREFIX
 
 
-# change to the temporary $SCRATCH directory, where we can create whatever files we want
-cd $SCRATCH
+# change to the temporary $TMPDIR directory, where we can create whatever files we want
+cd $TMPDIR
 mkdir -p output/$JOB_PREFIX # create an output folder, which we will copy across to $DATA when done
 
 # copy across only what we need:
