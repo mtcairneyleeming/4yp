@@ -116,8 +116,7 @@ obs_idx_lst = calculate_obs_fracs(args["obs_fracs"], args["n"], rng_key_observat
 
 args["loss_fn_names"] = ["gp" if x is None else x.__name__ for x in args["loss_fns"]]
 
-save_args(args["expcode"], "6", args)
-
+save_args(args["expcode"], "7", args)
 
 print(f" index {index}/{len(args['loss_fns']) -1} (0-indexed!)")
 
