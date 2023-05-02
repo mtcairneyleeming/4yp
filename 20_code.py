@@ -64,7 +64,7 @@ args.update(
         "test_num_batches": 20,
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
-                "variance_prior_choice": "lognormal",
+        "variance_prior_choice": "lognormal",
         "variance_prior_arguments": {"location": 0.0, "scale": 0.1},
         "scoring_num_draws": 5000,
         "expcode": "20",

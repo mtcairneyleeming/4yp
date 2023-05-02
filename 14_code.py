@@ -82,6 +82,8 @@ args.update(
         "rng_key_ground_truth": random.PRNGKey(4),
         "length_prior_choice": "uniform",
         "length_prior_arguments": {"lower": 0.01, "upper": 0.5},
+        "variance_prior_choice": "lognormal",
+        "variance_prior_arguments": {"location": 0.0, "scale": 0.1},
         "ground_truth_ls": 0.2,
     }
 )
@@ -93,7 +95,16 @@ use_gp = len(sys.argv) >= 2 and sys.argv[1] == "use_gp"
 
 on_arc = "SLURM_JOBID" in os.environ
 
-gp = BuildGP(args["gp_kernel"], 5e-5, None, True, args["length_prior_choice"], args["length_prior_arguments"])
+gp = BuildGP(
+    args["gp_kernel"],
+    5e-5,
+    None,
+    True,
+    length_prior_choice=args["length_prior_choice"],
+    length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
+)
 
 
 rng_key, _ = random.split(random.PRNGKey(4))
@@ -210,7 +221,16 @@ save_args(args["expcode"], "gp" if use_gp else "v6", args)
 rng_key, rng_key_all_mcmc, rng_key_true_mcmc = random.split(rng_key, 3)
 
 f = (
-    BuildGP(args["gp_kernel"], 5e-5, args["obs_idx"], True, args["length_prior_choice"], args["length_prior_arguments"])
+    BuildGP(
+        args["gp_kernel"],
+        5e-5,
+        args["obs_idx"],
+        True,
+        length_prior_choice=args["length_prior_choice"],
+        length_prior_args=args["length_prior_arguments"],
+        variance_prior_choice=args["variance_prior_choice"],
+        variance_prior_args=args["variance_prior_arguments"],
+    )
     if use_gp
     else cvae_length_mcmc(
         args["hidden_dim1"],

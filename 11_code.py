@@ -76,14 +76,12 @@ args.update(
         "train_num_batches": 500,
         "test_num_batches": 20,
         "mmd_rbf_ls": 4.0,
-
         "length_prior_choice": "invgamma",
         "length_prior_arguments": {"concentration": 4.0, "rate": 1.0},
-
+        "variance_prior_choice": "lognormal",
+        "variance_prior_arguments": {"location": 0.0, "scale": 0.1},
         "scoring_num_draws": 5000,
-
         "jitter_scaling": 1 / 300 * 6e-6,  # n times this gives the jitter
-
         "exp5": {
             "Arange": [25, 50, 100, 150, 200, 225, 250],
             "Brange": [50, 75, 100, 125, 150, 175, 200],
@@ -121,7 +119,7 @@ args.update(
             "Brange": [100, 200, 400, 800],
             "Adesc": "n",
             "Bdesc": "train_num_batches",
-            "loss_fns": [combo_loss(RCL, KLD)]
+            "loss_fns": [combo_loss(RCL, KLD)],
         },
         "experiment": experiment,
     }
@@ -156,6 +154,8 @@ gp = BuildGP(
     noise=False,
     length_prior_choice=args["length_prior_choice"],
     length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
 )
 
 
@@ -200,6 +200,7 @@ state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key
 
 print("Starting training", flush=True)
 
+
 def calc_scores(final_state, file_name, rng_key):
 
     rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)
@@ -242,7 +243,7 @@ final_states = []
 
 for loss_fn in loss_fns:
     file_name = gen_file_name("11", args, f"11_{experiment}_{index}_{loss_fn.__name__}")
- 
+
     if args[experiment]["Bdesc"] != "num_epochs" and args[experiment]["Adesc"] != "num_epochs":
         # timing is now automatic in run_training
 
@@ -251,14 +252,14 @@ for loss_fn in loss_fns:
                 loss_fn, None, args["num_epochs"], train_draws, test_draws, state, rng_key_train_shuffle
             )
             save_training("11", file_name, final_state, metrics_history)
-            
-        else: 
+
+        else:
             final_state = load_training_state("11", file_name, state, arc_learnt_models_dir=on_arc)
 
         final_states.append((final_state, file_name))
 
     else:
-        
+
         iterating_on_B = args[experiment]["Bdesc"] == "num_epochs"
         iterate_list = Brange if iterating_on_B else Arange
 
@@ -268,17 +269,26 @@ for loss_fn in loss_fns:
 
         print(iterating_on_B, iterate_list)
 
-
         for j, num_epochs in enumerate(iterate_list):
-            new_index = j * ar + a if iterating_on_B else j* br + b 
+            new_index = j * ar + a if iterating_on_B else j * br + b
             b = new_index // ar
             a = new_index % ar
-            
-            print(f"Exp {experiment}, NUM_EPOCHS ITERATION, new a={a}/{ar-1}, new b={b}/{br-1}, new index={new_index}/{ar*br-1} [indices 0-(n-1)]")
+
+            print(
+                f"Exp {experiment}, NUM_EPOCHS ITERATION, new a={a}/{ar-1}, new b={b}/{br-1}, new index={new_index}/{ar*br-1} [indices 0-(n-1)]"
+            )
             args = update_args_11(args, args[experiment], a, b)  # set num_epochs correctly now!
             file_name = gen_file_name("11", args, f"11_{experiment}_{new_index}_{loss_fn.__name__}")
             if not pre_trained:
-                final_state, h = run_training_shuffle(loss_fn, None, num_epochs - num_epochs_so_far, train_draws, test_draws, final_state, random.fold_in(rng_key_train_shuffle, j))
+                final_state, h = run_training_shuffle(
+                    loss_fn,
+                    None,
+                    num_epochs - num_epochs_so_far,
+                    train_draws,
+                    test_draws,
+                    final_state,
+                    random.fold_in(rng_key_train_shuffle, j),
+                )
 
                 if j > 0:
                     for metric, value in h.items():

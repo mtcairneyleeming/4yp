@@ -82,6 +82,8 @@ args = {
     "rng_key_ground_truth": random.PRNGKey(4),
     "length_prior_choice": "lognormal",
     "length_prior_arguments": {"location": -1.3558, "scale": 0.5719},
+    "variance_prior_choice": "lognormal",
+    "variance_prior_arguments": {"location": 0.0, "scale": 0.1},
 }
 
 
@@ -109,6 +111,8 @@ gp = BuildGP(
     noise=True,
     length_prior_choice=args["length_prior_choice"],
     length_prior_args=args["length_prior_arguments"],
+    variance_prior_choice=args["variance_prior_choice"],
+    variance_prior_args=args["variance_prior_arguments"],
 )
 
 if not use_pregenerated:

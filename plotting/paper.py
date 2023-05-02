@@ -128,7 +128,7 @@ def get_trained_draws_from_args(
                 length_prior_choice=args["length_prior_choice"],
                 length_prior_args=args["length_prior_arguments"],
                 variance_prior_choice=args.get("variance_prior_choice", "lognormal"),
-                variance_prior_args=args.get("variance_prior_arguments", {}),
+                variance_prior_args=args.get("variance_prior_arguments", {"location": 0.0, "scale": 0.1}),
             )
         else:
             gp = gp_builder(args)
