@@ -103,8 +103,6 @@ args["gp_kernels"] = [esq_kernel, rq_matrix_kernel(0.5)]
 
 args["loss_fns"] = [
     combo_loss(RCL, KLD),
-    combo3_loss(RCL, KLD, MMD_rbf(4.0), 1, 1, 10),
-    combo3_loss(RCL, KLD, MMD_rbf(8.0), 1, 1, 10),
     combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10),
     combo3_loss(RCL, KLD, MMD_rqk(4, 10), 0.1, 1, 10),
 ]
@@ -116,7 +114,7 @@ args_index = 1
 
 args["loss_fn_names"] = [x.__name__ for x in args["loss_fns"]]
 
-save_args(args["expcode"], 1, args)
+save_args(args["expcode"], 2, args)
 
 
 print(f" index {index}/{total -1} (0-indexed!)")
