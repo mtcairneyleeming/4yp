@@ -60,7 +60,7 @@ args = {
     # ground truth
     "year": 2010,
     "coord_scaling_factor": 1e5,
-    "aggr_method": "mean",
+    "aggr_method": 127,
     # GP prior configuration
     "gp_kernel": esq_kernel,
     "rng_key": random.PRNGKey(2),
@@ -260,6 +260,8 @@ if not using_gp and not skip_scores:
 
 
 label = "gp" if using_gp else f"{loss_fn.__name__}"
+
+label += f"{args['state']}_{args['year']}_{args['aggr_method']}"
 
 
 rng_key, rng_key_mcmc = random.split(rng_key, 2)
