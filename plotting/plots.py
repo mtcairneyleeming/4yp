@@ -3,6 +3,13 @@ import jax.numpy as jnp
 import numpy as onp
 import numpyro.diagnostics
 import math
+from mpl_toolkits.axes_grid1 import AxesGrid
+import matplotlib.lines
+
+
+# matplotlib.rcParams["text.usetex"] = True
+# matplotlib.rcParams["font.family"] = "serif"
+matplotlib.rcParams["font.size"] = "10"
 
 
 def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
@@ -23,7 +30,7 @@ def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2):
+def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, show_legend=True):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -38,18 +45,26 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
         print(f"WARNING! all draws were NaN for title {title}, ylabel {ylabel}")
         ax.set_title(title)
         return ax
-    
+
     mean = jnp.nanmean(draws, axis=0)
     hpdi = numpyro.diagnostics.hpdi(draws, 0.9)
 
-    for j in range(1, N_lines):
-        ax.plot(x, draws[j, :], alpha=lines_alpha, color="darkgreen", label="")
-    # separate from other GP draws to label it
-    ax.plot(x, draws[0, :], alpha=lines_alpha, color="darkgreen", label=f"{legend_label} draws")
+    for j in range(0, N_lines):
+        ax.plot(x, draws[j, :], alpha=lines_alpha, color="darkgreen")
 
-    ax.fill_between(x, hpdi[0], hpdi[1], alpha=0.1, interpolate=True, label="95% HPDI")
-    ax.plot(x, mean, label="mean")
-    ax.legend(loc=4)
+    hpdi_handle = ax.fill_between(x, hpdi[0], hpdi[1], alpha=0.1, interpolate=True, label="95% HPDI")
+    mean_handle = ax.plot(x, mean, label="mean")
+
+    if show_legend:
+        ax.legend(
+            loc=4,
+            handles=[
+                matplotlib.lines.Line2D([], [], color="darkgreen", alpha=0.35, label="draws"),
+                hpdi_handle,
+                mean_handle[0],
+            ],
+            prop={"size": 10},
+        )
     if _min is None:
         _min = -2
     if _max is None:
@@ -58,30 +73,10 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
     ax.set_xlabel("$x$")
     ax.set_ylabel(ylabel)
     ax.set_title(title)
+    ax.locator_params("x", nbins=6)
 
     if save_path is not None:
-        fig.savefig(save_path, dpi=300, bbox_inches="tight")
-
-
-
-def quick_compare_draws(
-    x,
-    draws1,
-    draws2,
-    title1="Examples of priors we want to encode",
-    title2="Priors learnt by VAE",
-    ylabel1="$y=f_{GP}(x)$",
-    ylabel2="$y=f_{VAE}(x)$",
-    save_path=None,
-):
-
-    # plot results
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 3))
-    plot_draws(draws1[:10], x, title1, ylabel1, ax=axs[0])
-    plot_draws(draws2, x, title2, ylabel2, ax=axs[1])
-
-    if save_path is not None:
-        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+        fig.savefig(save_path, dpi=300, bbox_inches=None)
 
 
 def compare_draws(
@@ -89,10 +84,14 @@ def compare_draws(
 ):
 
     # plot results
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 3))
+    fig = plt.figure()
+    fig.set_size_inches(6, 3)
+    axs = AxesGrid(fig, (1, 1, 1), nrows_ncols=(1, 2), label_mode="L", share_all=True, axes_pad=0.12, aspect=False)
 
-    plot_draws_hpdi(draws1, x, title1, ylabel1, legend_label1, axs[0], _min=_min, _max=_max)
-    plot_draws_hpdi(draws2, x, title2, ylabel2, legend_label2, axs[1], _min=_min, _max=_max)
+    plot_draws_hpdi(draws1, x, title1, ylabel1, legend_label1, axs[0], _min=_min, _max=_max, show_legend=False)
+    plot_draws_hpdi(draws2, x, title2, ylabel2, "", axs[1], _min=_min, _max=_max)
+
+    print(fig.get_size_inches())
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -146,7 +145,7 @@ def plot_one_inference(
         hpdi[1],
         alpha=0.1,
         interpolate=True,
-        label=f"posterior: 95% BCI",
+        label=f"95% HPDI",
     )
     for j in range(N_lines):
         ax.plot(
@@ -154,16 +153,16 @@ def plot_one_inference(
             inferred_priors[j, :],
             alpha=0.1,
             color="darkgreen",
-            label=f"{legend_label} posterior draws" if j == 0 else "",
+            label=f"posterior draws" if j == 0 else "",
         )
 
     ax.plot(x, mean, label="predicted mean")
     ax.plot(x, ground_truth, label="ground truth", color="orange")
     if x_obs is not None and y_obs is not None:
-        ax.scatter(x_obs, y_obs, color="red", label="observed data", s=60)
+        ax.scatter(x_obs, y_obs, color="red", label="observed data", s=20)
     ax.set_title(title)
     if legend:
-        ax.legend(loc=4)
+        ax.legend(loc="upper right", prop={"size": 9})
     ax.set_ylim([_min, _max])
     ax.set_xlabel("$x$")
     ax.set_ylabel(ylabel)
@@ -173,15 +172,21 @@ def plot_one_inference(
 
 
 def compare_inference_steps(
-    x, ground_truth, x_obss, y_obss, plain_prior_samples, inferred_priors_list, title="VAE", fig=None, save_path=None
+    x, ground_truth, x_obss, y_obss, plain_prior_samples, inferred_priors_list, title="VAE", save_path=None
 ):
-    if fig is None:
-        fig = plt.figure(figsize=(15, 4))  # should be
+    fig = plt.figure()
+    fig.set_size_inches(6, 3)
+    axs = AxesGrid(
+        fig,
+        (1, 1, 1),
+        nrows_ncols=(1, len(inferred_priors_list)),
+        label_mode="L",
+        share_all=True,
+        axes_pad=0.12,
+        aspect=False,
+    )
 
-    # plot results
-    axs = fig.subplots(nrows=1, ncols=len(inferred_priors_list) + 1)
-
-    plot_draws_hpdi(plain_prior_samples, x, f"{title} draws", f"$f_{{{title}}}(x)", title, ax=axs[0])
+    # plot_draws_hpdi(plain_prior_samples, x, f"{title} draws", f"$f_{{{title}}}(x)", title, ax=axs[0])
 
     for i in range(len(inferred_priors_list)):
         plot_one_inference(
@@ -191,12 +196,11 @@ def compare_inference_steps(
             x_obss[i],
             y_obss[i],
             f"{len(x_obss[i])} observations",
-            "$y=f_{VAE}(x)$",
+            "$f(x)$",
             "VAE",
-            ax=axs[i + 1],
-            legend=(i == 0),
+            ax=axs[i],
+            legend=(i == len(inferred_priors_list) - 1),
         )
-    fig.tight_layout()
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -291,19 +295,20 @@ def plot_moments(
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_matrix(mat, title=None, ylabel=None, vmin=None, vmax=None, show_colorbar=True, ax=None, save_path=None):
+def plot_matrix(mat, title=None, ylabel=None, vmin=None, vmax=None, cmap=None, show_colorbar=True, ax=None, save_path=None):
     createdAx = False
     if ax is None:
         createdAx = True
         print("Created fig")
         fig = plt.figure()
 
-        ax = fig.subplots(1, 1)  # add_axes([.1, .1, 0.8, 0.8])
+        ax = fig.subplots(1, 1)
 
-    current_cmap = plt.get_cmap("plasma")
-    current_cmap.set_bad(color="red")
+    if cmap is None:
+        cmap = plt.get_cmap("plasma")
+        cmap.set_bad(color="red")
 
-    plotted = ax.matshow(mat, cmap=current_cmap, vmin=vmin, vmax=vmax, norm="log")
+    plotted = ax.matshow(mat, cmap=cmap, vmin=vmin, vmax=vmax, interpolation="bilinear")
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_ticks([])
     ax.spines["top"].set_visible(False)
@@ -326,32 +331,47 @@ def plot_matrix(mat, title=None, ylabel=None, vmin=None, vmax=None, show_colorba
 def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
     from plotting.plots import plot_matrix
     from reusable.moments import correlation
-    from matplotlib.ticker import LogFormatter
-
     gp_mats = []
     vae_mats = []
 
     for order in matrix_orders:
         gp_mats.append(correlation(gp_draws, order))
         vae_mats.append(correlation(vae_draws, order))
+    vmin = max(0, min(jnp.nanmin(jnp.array(gp_mats)), jnp.nanmin(jnp.array(vae_mats))))
+    vmax = max(jnp.nanmax(jnp.array(gp_mats)), jnp.nanmax(jnp.array(vae_mats)))
+    print(vmin, vmax)
+    fig = plt.figure()
+    fig.set_size_inches(6, 3)
+    axs = AxesGrid(
+        fig,
+        (1, 1, 1),
+        nrows_ncols=(2, len(matrix_orders)),
+        label_mode="L",
+        share_all=True,
+        axes_pad=0.12,
+        aspect=True,
+        cbar_location="right",
+        cbar_mode="single",
+        cbar_size="5%",
+        cbar_pad="2%",
+    )
 
-    vmin = max(0.001, min([jnp.min(m, axis=None) for m in gp_mats] + [jnp.min(m, axis=None) for m in vae_mats]))
-    vmax = max([jnp.max(m, axis=None) for m in gp_mats] + [jnp.max(m, axis=None) for m in vae_mats])
+    cmap = plt.get_cmap("plasma")
+    cmap.set_bad(color="red")
 
-    fig = plt.figure(figsize=(2 * len(matrix_orders), 4))
-    axs = fig.subplots(2, len(matrix_orders))
-
-    out = None
     for k, order in enumerate(matrix_orders):
-        plot_matrix(
-            gp_mats[k], title=f"$ f^{order}$", ylabel="GP" if k == 0 else None, vmin=vmin, vmax=vmax, ax=axs[0, k]
-        )
+        plot_matrix(gp_mats[k], title=f"$ f^{order}$", ylabel="GP" if k == 0 else None, vmin=vmin, vmax=vmax,  cmap=cmap, ax=axs[k])
 
-        out = plot_matrix(vae_mats[k], ylabel="VAE" if k == 0 else None, vmin=vmin, vmax=vmax, ax=axs[1, k])
+        plot_matrix(vae_mats[k], ylabel="VAE" if k == 0 else None, vmin=vmin, vmax=vmax, cmap=cmap, ax=axs[len(matrix_orders) + k])
 
-    fig.subplots_adjust(right=0.925, left=0)
-    cbar_ax = fig.add_axes([0.95, 0.125, 0.025, 0.75])
-    formatter = plt.LogFormatter(10, labelOnlyBase=False)
+
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+
+    # fake up the array of the scalar mappable. Urgh...
+    sm._A = []
+
+    axs.cbar_axes[0].colorbar(sm)
 
     return fig
 
@@ -393,7 +413,7 @@ def plot_scores_graph(
     ax=None,
     save_path=None,
     num_decimals=0,
-    plot_range=None
+    plot_range=None,
 ):
     x = onp.array(x)
     if ax is None:
@@ -414,9 +434,9 @@ def plot_scores_graph(
             top = quant
         else:
             top = m
-        plot_range = [0, 1.2* top]
+        plot_range = [0, 1.2 * top]
     print(title, x_label, plot_range)
-    
+
     ax.set_ylim(plot_range)
     ax.set_title(title)
     ax.legend(title=legend_title, loc="upper right")
