@@ -8,6 +8,7 @@ from reusable.util import (
     load_training_state,
     get_model_params,
 )
+from mpl_toolkits.axes_grid1 import AxesGrid
 import matplotlib.pyplot as plt
 from plotting.plots import plot_training, plot_draws_hpdi
 import jax.random as random
@@ -78,7 +79,6 @@ def get_trained_draws(
     leaky_relu=True,
     filter_loss_fns=None,
     gp_builder=None,
-    
 ):
     return get_trained_draws_from_args(
         load_args(str(code), str(args_count), exp_name),
@@ -176,8 +176,7 @@ def get_trained_draws_from_args(
                 load_training_state("16", gen_file_name("16", standard_args, "exp1" + loss_fn, "A"), state)
             )
         else:
-            if use_single_decoder: 
-
+            if use_single_decoder:
 
                 decoder_params = get_model_params(
                     load_training_state(
@@ -284,6 +283,7 @@ def plot_trained_draws(
     plot_range=None,
     y_axis_label="$y=f_{VAE}(x)$",
     legend_label="PriorVAE",
+    page_max_rows=3,
 ):
     assert num_cols * num_rows >= len(draws)
 
@@ -302,9 +302,26 @@ def plot_trained_draws(
         case "align_right":
             mapping = align_right_backfill_with_gp(len(draws), num_rows, num_cols)
 
-    fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
+    figs = []
+    axes = onp.empty((0,))
+    print("sillt", page_max_rows)
+    if page_max_rows is not None:
 
-    clear_unused_axs(axs, mapping, len(draws) + 1)
+        iter_total = (num_rows // page_max_rows) * page_max_rows
+        print(num_rows, iter_total, num_rows // page_max_rows + 1)
+        for i in range(num_rows // page_max_rows + 1):
+            if i == num_rows // page_max_rows and iter_total == num_rows:
+                continue
+            nrows = num_rows - iter_total if i == num_rows // page_max_rows else page_max_rows
+            fig, a = plt.subplots(nrows=nrows, ncols=num_cols, figsize=(9, 6 * nrows / page_max_rows))
+            figs.append(fig)
+            axes = onp.concatenate((axes, a.flat))
+    else:
+        fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
+        figs.append(fig)
+        axes = axs.flat
+
+    clear_unused_axs(axes, mapping, len(draws) + 1)
 
     for i, (draw, title) in enumerate(draws):
         if plot_range is None:
@@ -319,14 +336,98 @@ def plot_trained_draws(
             pretty_loss_fn_name(title),
             "$y=f_{GP}(x)$" if title == "gp" else y_axis_label,
             "GP" if title == "gp" else legend_label,
-            ax=axs.flat[mapping(i)],
+            ax=axes[mapping(i)],
             _min=plot_range_i[0],
             _max=plot_range_i[1],
         )
+    for i, fig in enumerate(figs):
+        fig.tight_layout()
 
-    fig.tight_layout()
+        fig.savefig(f"./gen_plots/{save_file_name}_draws_{i}.pdf")
 
-    fig.savefig(f"./gen_plots/{save_file_name}_draws.pdf")
+
+def plot_trained_draws_compact(
+    draws,
+    x,
+    num_cols,
+    num_rows,
+    save_file_name,
+    backfill=None,
+    separate_gp=False,
+    plot_range=None,
+    y_axis_label="$y=f_{VAE}(x)$",
+    legend_label="PriorVAE",
+    page_max_rows=3,
+):
+    assert num_cols * num_rows >= len(draws)
+
+    # add an extra row if asked, or if it won't fit in the grid
+    if separate_gp:
+        num_rows += 1
+
+    match backfill:
+        case None:
+            if separate_gp:
+                mapping = lambda i: 0 if i == 0 else i - 1 + num_cols
+            else:
+                mapping = lambda i: i
+        case "align_left":
+            mapping = align_left_backfill(len(draws), num_rows, num_cols)
+        case "align_right":
+            mapping = align_right_backfill_with_gp(len(draws), num_rows, num_cols)
+
+    figs = []
+    axes = onp.empty((0,))
+    if page_max_rows is not None:
+
+        iter_total = (num_rows // page_max_rows) * page_max_rows
+        print(num_rows, iter_total, num_rows // page_max_rows + 1)
+        for i in range(num_rows // page_max_rows + 1):
+            if i == num_rows // page_max_rows and iter_total == num_rows:
+                continue
+            nrows = num_rows - iter_total if i == num_rows // page_max_rows else page_max_rows
+            # fig = plt.figure()
+            # fig.set_size_inches(9, 6 * nrows / page_max_rows)
+            # grid = AxesGrid(fig, (1, 1, 1), nrows_ncols=(nrows, num_cols), label_mode="L", share_all=True, axes_pad=0.12, aspect=False)
+
+            # figs.append(fig)
+            # axes = onp.concatenate((axes, grid.axes_all))
+            fig, a = plt.subplots(nrows=nrows, ncols=num_cols, figsize=(9, 6 * nrows / page_max_rows))
+            figs.append(fig)
+            axes = onp.concatenate((axes, a.flat))
+    else:
+        fig, axs = plt.subplots(
+            nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5), sharex="row", sharey="row"
+        )
+        figs.append(fig)
+        axes = axs.flat
+
+    clear_unused_axs(axes, mapping, len(draws) + 1)
+
+    for i, (draw, title) in enumerate(draws):
+        if plot_range is None:
+            plot_range_i = [None, None]
+        elif len(plot_range) > 2:
+            plot_range_i = plot_range[i]
+        else:
+            plot_range_i = plot_range
+        plot_draws_hpdi(
+            draw,
+            x,
+            pretty_loss_fn_name(title),
+            (y_axis_label[i // num_cols] if isinstance(y_axis_label, list) else y_axis_label) if mapping(i) % num_cols == 0 else "",
+            None,
+            ax=axes[mapping(i)],
+            _min=plot_range_i[0],
+            _max=plot_range_i[1],
+            show_legend=mapping(i) % num_cols == 0,
+            show_x_label=False
+        )
+        # if mapping(i) % num_cols != 0:
+        #    axes[mapping(i)].set
+    for i, fig in enumerate(figs):
+        fig.tight_layout(pad=0.5)
+        fig.savefig(f"./gen_plots/{save_file_name}_draws_{i}.pdf")
 
 
 # ======================================================================================
@@ -351,7 +452,15 @@ def plot_simple_draws(
     plot_range=None,
 ):
     draws, args = get_trained_draws(
-        code, exp_name, args_disambig, file_back_compat=file_compat, include_standard_vae=include_standard_vae, use_single_decoder=use_single_decoder, leaky_relu=leaky_relu, filter_loss_fns=filter, gp_builder=gp_builder
+        code,
+        exp_name,
+        args_disambig,
+        file_back_compat=file_compat,
+        include_standard_vae=include_standard_vae,
+        use_single_decoder=use_single_decoder,
+        leaky_relu=leaky_relu,
+        filter_loss_fns=filter,
+        gp_builder=gp_builder,
     )
     plot_trained_draws(
         draws,
@@ -359,5 +468,5 @@ def plot_simple_draws(
         *calc_plot_dimensions(args, True),
         f"/{code}/{code}_{exp_name}_{args_disambig}",
         backfill="align_right",
-        plot_range=plot_range
+        plot_range=plot_range,
     )

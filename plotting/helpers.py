@@ -180,7 +180,7 @@ def pretty_prior(prior_choice: str, prior_args: dict):
 
     elif prior_choice == "halfnormal":
         scale = prior_args.get("scale", 15.0)
-        return f"$\|\mathcal{{N}}(0, {numstr(scale)})\|$"
+        return f"$|\mathcal{{N}}(0, {numstr(scale)})|$"
 
     elif prior_choice == "gamma":
         conc = prior_args.get("concentration", 4)

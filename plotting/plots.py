@@ -9,7 +9,7 @@ import matplotlib.lines
 
 # matplotlib.rcParams["text.usetex"] = True
 # matplotlib.rcParams["font.family"] = "serif"
-matplotlib.rcParams["font.size"] = "10"
+matplotlib.rcParams["font.size"] = "9"
 
 
 def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
@@ -30,10 +30,23 @@ def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, show_legend=True):
+def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, show_legend=True, show_x_label=True):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
+
+    
+    if _min is None:
+        _min = -2
+    if _max is None:
+        _max = 2
+    ax.set_xlim([0,1])
+    ax.set_ylim([_min, _max])
+    if show_x_label:
+        ax.set_xlabel("$x$", size=8)
+    ax.set_ylabel(ylabel, size=8)
+    ax.set_title(title, size=9)
+    ax.locator_params("x", nbins=6)
 
     lines_alpha = 0.1
     N_lines = 15
@@ -43,7 +56,7 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
 
     if draws.shape[0] == 0:
         print(f"WARNING! all draws were NaN for title {title}, ylabel {ylabel}")
-        ax.set_title(title)
+        
         return ax
 
     mean = jnp.nanmean(draws, axis=0)
@@ -63,18 +76,8 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
                 hpdi_handle,
                 mean_handle[0],
             ],
-            prop={"size": 10},
+            prop={"size": 9},
         )
-    if _min is None:
-        _min = -2
-    if _max is None:
-        _max = 2
-    ax.set_ylim([_min, _max])
-    ax.set_xlabel("$x$")
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    ax.locator_params("x", nbins=6)
-
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches=None)
 
