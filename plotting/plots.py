@@ -5,7 +5,8 @@ import numpyro.diagnostics
 import math
 from mpl_toolkits.axes_grid1 import AxesGrid
 import matplotlib.lines
-
+import matplotlib.ticker
+from matplotlib.colors import Normalize, SymLogNorm
 
 # matplotlib.rcParams["text.usetex"] = True
 # matplotlib.rcParams["font.family"] = "serif"
@@ -30,17 +31,18 @@ def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, show_legend=True, show_x_label=True):
+def plot_draws_hpdi(
+    draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, show_legend=True, show_x_label=True
+):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-    
     if _min is None:
         _min = -2
     if _max is None:
         _max = 2
-    ax.set_xlim([0,1])
+    ax.set_xlim([0, 1])
     ax.set_ylim([_min, _max])
     if show_x_label:
         ax.set_xlabel("$x$", size=8)
@@ -56,7 +58,7 @@ def plot_draws_hpdi(draws, x, title, ylabel, legend_label, ax=None, save_path=No
 
     if draws.shape[0] == 0:
         print(f"WARNING! all draws were NaN for title {title}, ylabel {ylabel}")
-        
+
         return ax
 
     mean = jnp.nanmean(draws, axis=0)
@@ -298,7 +300,7 @@ def plot_moments(
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_matrix(mat, title=None, ylabel=None, vmin=None, vmax=None, cmap=None, show_colorbar=True, ax=None, save_path=None):
+def plot_matrix(mat, title=None, ylabel=None, colour_norm=None, cmap=None, show_colorbar=True, ax=None, save_path=None):
     createdAx = False
     if ax is None:
         createdAx = True
@@ -311,7 +313,15 @@ def plot_matrix(mat, title=None, ylabel=None, vmin=None, vmax=None, cmap=None, s
         cmap = plt.get_cmap("plasma")
         cmap.set_bad(color="red")
 
-    plotted = ax.matshow(mat, cmap=cmap, vmin=vmin, vmax=vmax, interpolation="bilinear")
+    if colour_norm is None:
+        colour_norm = Normalize()
+
+    plotted = ax.matshow(
+        mat,
+        cmap=cmap,
+        norm=colour_norm,
+        interpolation="bilinear",
+    )
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_ticks([])
     ax.spines["top"].set_visible(False)
@@ -334,13 +344,14 @@ def plot_matrix(mat, title=None, ylabel=None, vmin=None, vmax=None, cmap=None, s
 def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
     from plotting.plots import plot_matrix
     from reusable.moments import correlation
+
     gp_mats = []
     vae_mats = []
 
     for order in matrix_orders:
-        gp_mats.append(correlation(gp_draws, order))
-        vae_mats.append(correlation(vae_draws, order))
-    vmin = max(0, min(jnp.nanmin(jnp.array(gp_mats)), jnp.nanmin(jnp.array(vae_mats))))
+        gp_mats.append(correlation(gp_draws, order))# jnp.log()
+        vae_mats.append(correlation(vae_draws, order)) # jnp.log()
+    vmin = 0.01#  min(jnp.nanmin(jnp.array(gp_mats)), jnp.nanmin(jnp.array(vae_mats)))
     vmax = max(jnp.nanmax(jnp.array(gp_mats)), jnp.nanmax(jnp.array(vae_mats)))
     print(vmin, vmax)
     fig = plt.figure()
@@ -362,19 +373,30 @@ def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
     cmap = plt.get_cmap("plasma")
     cmap.set_bad(color="red")
 
+    norm = SymLogNorm(vmin=vmin, vmax=vmax, linthresh=0.001) # Normalize(vmin=vmin, vmax=vmax) #
+
     for k, order in enumerate(matrix_orders):
-        plot_matrix(gp_mats[k], title=f"$ f^{order}$", ylabel="GP" if k == 0 else None, vmin=vmin, vmax=vmax,  cmap=cmap, ax=axs[k])
+        plot_matrix(
+            gp_mats[k],
+            title=f"$ f^{order}$",
+            ylabel="GP" if k == 0 else None,
+            colour_norm=norm,
+            cmap=cmap,
+            ax=axs[k],
+        )
 
-        plot_matrix(vae_mats[k], ylabel="VAE" if k == 0 else None, vmin=vmin, vmax=vmax, cmap=cmap, ax=axs[len(matrix_orders) + k])
+        out = plot_matrix(
+            vae_mats[k],
+            ylabel="VAE" if k == 0 else None,
+            colour_norm=norm,
+            cmap=cmap,
+            ax=axs[len(matrix_orders) + k],
+        )
 
+    #out.set_clim(vmin=0)
 
-
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
-
-    # fake up the array of the scalar mappable. Urgh...
-    sm._A = []
-
-    axs.cbar_axes[0].colorbar(sm)
+    axs.cbar_axes[0].colorbar(out) #, ticks=matplotlib.ticker.LinearLocator(6))
+    #axs.cbar_axes[0].set_yticklabels([f"{x:.3f}" for x in onp.exp(axs.cbar_axes[0].get_yticks())])
 
     return fig
 
