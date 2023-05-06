@@ -7,6 +7,7 @@ Compare (various sets of ) loss functions, save training history & decoder/etc.
 """
 import os
 import sys
+import itertools
 import jax.numpy as jnp
 import jax.random as random
 import optax
@@ -16,7 +17,7 @@ from numpyro.infer import Predictive
 from reusable.data import gen_gp_batches
 from reusable.gp import BuildGP
 from reusable.kernels import esq_kernel, rq_matrix_kernel
-from reusable.loss import combo3_loss, combo_loss, MMD_rbf, RCL, KLD, MMD_rqk
+from reusable.loss import combo_multi_loss, combo_loss, MMD_rbf, RCL, KLD, MMD_rqk
 from reusable.train_nn import SimpleTrainState, run_training_shuffle
 from reusable.util import (
     save_args,
@@ -28,6 +29,7 @@ from reusable.util import (
     save_datasets,
     load_datasets,
     load_training_state,
+    load_training_history,
 )
 from reusable.vae import VAE, vae_sample
 
@@ -100,18 +102,30 @@ args["variance_priors"] = [
 
 args["gp_kernels"] = [esq_kernel, rq_matrix_kernel(0.5)]
 
-args["loss_fns"] = [
-    combo_loss(RCL, KLD),
-    combo3_loss(RCL, KLD, MMD_rbf(4.0), 0.01, 1, 10),
-    combo3_loss(RCL, KLD, MMD_rqk(4, 10), 0.1, 1, 10),
+
+args["loss_fn_to_vary"] = [
+    (RCL),
+    (RCL, MMD_rbf(4.0)),
+    (RCL, MMD_rqk(4, 10)),
 ]
+
+
+args["loss_fn_fixed"] = [
+    (KLD),
+    (KLD),
+    (KLD),
+]
+
+args["loss_fn_selection_range"] = [0.01, 1, 10, 15, 20, 30, 50]
+
+args["loss_fn_to_vary_names"] = [[y.__name__ for y in x] for x in args["loss_fn_to_vary"]]
+args["loss_fn_fixed_names"] = [[y.__name__ for y in x] for x in args["loss_fn_fixed"]]
 
 
 total = len(args["length_priors"]) * len(args["variance_priors"]) * len(args["gp_kernels"]) * len(args["loss_fns"])
 
 args_index = 1
 
-args["loss_fn_names"] = [x.__name__ for x in args["loss_fns"]]
 
 save_args(args["expcode"], 2, args)
 
@@ -131,7 +145,6 @@ args.update(args["variance_priors"][variance_index])
 
 args["gp_kernel"] = args["gp_kernels"][gp_kernel_index]
 
-loss_fn = args["loss_fns"][loss_fn_index]
 
 rng_key, _ = random.split(random.PRNGKey(4))
 
@@ -178,8 +191,6 @@ if not pre_trained:
 
     print("Generated data", flush=True)
 
-file_name = gen_file_name(args["expcode"], args, loss_fn.__name__)
-
 
 rng_key, rng_key_init, rng_key_train, rng_key_shuffle = random.split(rng_key, 4)
 
@@ -194,22 +205,68 @@ params = module.init(rng_key, jnp.ones((args["n"],)))["params"]
 tx = optax.adam(args["learning_rate"])
 state = SimpleTrainState.create(apply_fn=module.apply, params=params, tx=tx, key=rng_key_init)
 
+if "loss_fns" not in args and "loss_fn_to_vary" in args:
 
-if not pre_trained:
-    print("Starting training", flush=True)
+    final_states = []
+    metrics_histories = []
+    loss_fn_names = []
 
-    final_state, metrics_history = run_training_shuffle(
-        loss_fn, None, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
-    )
+    varying = args["loss_fn_to_vary"][loss_fn_index]
+    fixed = args["loss_fn_fixed"][loss_fn_index]
 
-    save_training(args["expcode"], file_name, final_state, metrics_history)
+    iterates = itertools.product(args["loss_fn_selection_range"], repeat=len(varying))
 
-    del train_draws
-    del test_draws
+    for tuple in iterates:
+
+        loss_fn = combo_loss(fixed, combo_multi_loss(varying, iterates))
+
+        loss_fn_names.append(loss_fn.__name__)
+
+        file_name = gen_file_name(args["expcode"], args, "selection_" + loss_fn.__name__)
+
+        if not pre_trained:
+            final_state, metrics_history = run_training_shuffle(
+                loss_fn, None, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
+            )
+            save_training(args["expcode"], file_name, final_state, metrics_history)
+
+        else:
+            final_state = load_training_state(args["expcode"], file_name, state, arc_learnt_models_dir=on_arc)
+            metrics_history = load_training_history(args["expcode"], file_name)
+
+        final_states.append(final_state)
+        metrics_histories.append(metrics_history)
+
+    if not pre_trained:
+        del train_draws
+        del test_draws
+
+    final_losses = [x["test_loss"][-1] for x in metrics_histories]
+
+    best_index = jnp.argmin(jnp.array(final_losses))
+
+    final_state = final_states[best_index]
+    file_name = gen_file_name(args["expcode"], args, loss_fn.__name__)
 
 
+elif "loss_fns" in args:
+    loss_fn = args["loss_fns"][loss_fn_index]
+    file_name = gen_file_name(args["expcode"], args, loss_fn.__name__)
+
+    if not pre_trained:
+        final_state, metrics_history = run_training_shuffle(
+            loss_fn, None, args["num_epochs"], train_draws, test_draws, state, rng_key_shuffle
+        )
+
+        save_training(args["expcode"], file_name, final_state, metrics_history)
+        del train_draws
+        del test_draws
+
+    else:
+        final_state = load_training_state(args["expcode"], file_name, state, arc_learnt_models_dir=on_arc)
 else:
-    final_state = load_training_state(args["expcode"], file_name, state, arc_learnt_models_dir=on_arc)
+    print("No loss functions to run!!!")
+    sys.exit(1)
 
 
 rng_key, rng_key_gp, rng_key_vae = random.split(rng_key, 3)

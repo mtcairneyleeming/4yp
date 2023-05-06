@@ -75,6 +75,25 @@ def combo3_loss(f, g, h, f_scale=1, g_scale=1, h_scale=1):
     return func
 
 
+def combo_multi_loss(fs, scales):
+    @jax.jit
+    def func(*args):
+        s = 0
+        for (f, scale) in zip(fs, scales):
+            s += scale * f(*args)
+        return s
+
+    name = ""
+    for (f, scale) in zip(fs, scales):
+        if name != "":
+            name += "+"
+        name += f"{scale if scale != 1 else ''}{f.__name__}"
+
+    func.__name__ = name
+
+    return func
+
+
 def conditional_loss_wrapper(f):
     """Remove the condition c from the original samples, so reconstrunction loss works"""
 
