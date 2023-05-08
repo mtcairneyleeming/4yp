@@ -2,7 +2,7 @@ import jax.numpy as jnp
 
 import numpyro
 import numpyro.distributions as dist
-from .vae import VAE_Decoder
+from .vae import VAE_Decoder, Single_Decoder
 from .gp import setup_prior
 from numpyro.infer import NUTS, init_to_median, MCMC, HMC, MixedHMC
 import time
@@ -29,6 +29,31 @@ def vae_mcmc(
             numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
 
     return func
+
+def decoder_mcmc(
+    hidden_dim1,
+    hidden_dim2,
+    latent_dim,
+    decoder_params,
+    obs_idx=None,
+    noise=False,
+):
+    def func(x, var=None, y=None, **kwargs):
+        z = numpyro.sample("z", dist.Normal(jnp.zeros(latent_dim), jnp.ones(latent_dim)))
+
+        x_z = numpyro.deterministic("x_z", jnp.concatenate((jnp.zeros(x.shape[0]), z) ))
+
+        decoder_nn = Single_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=x.shape[0])
+
+        f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, x_z))
+        sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
+        if y is None:  # during prediction
+            numpyro.sample("y_pred", dist.Normal(f, sigma))
+        else:  # during inference
+            numpyro.sample("y", dist.Normal(f[obs_idx], sigma), obs=y)
+
+    return func
+
 
 
 def cvae_mcmc(
