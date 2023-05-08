@@ -14,6 +14,7 @@ from plotting.helpers import (
     align_right_backfill_with_gp,
     pretty_loss_fn_name,
 )
+from .consts import *
 
 class StateLoader(object):
     states = {}
@@ -51,7 +52,7 @@ def plot_on_state(
     ax.set_aspect('equal')
 
     if title is not None:
-        ax.set_title(title)
+        ax.set_title(title, size=15)
 
     geom = loader.load_state_boundaries(state)["geometry"]
     newframe = gpd.GeoDataFrame({"d": data}, geometry=geom)
@@ -114,7 +115,7 @@ def plot_multi_on_state(
     print(num_rows, num_in_row)
 
     if fig is None:
-        fig = plt.figure(figsize=(num_in_row * 6, num_rows * 6))
+        fig = plt.figure(figsize=(1.5 * PAGE_WIDTH, 1.5 * num_rows * PAGE_WIDTH / num_in_row))
 
     if suptitle is not None:
         fig.suptitle(suptitle)
@@ -167,13 +168,14 @@ def plot_multi_on_state(
         sm._A = []
 
 
-        axs.cbar_axes[0].colorbar(sm, label=legend_title)
+        c = axs.cbar_axes[0].colorbar(sm, label=legend_title)
+        c.set_label(legend_title, size=15)
  
 
     clear_unused_axs(axs, mapping, len(datas))
 
     if save_file_name is not None:
-        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=300)
+        fig.savefig("gen_plots/" + save_file_name + ".png", dpi=300, bbox_inches=0)
 
 
 def mask_for_plotting(data, visible_indices):

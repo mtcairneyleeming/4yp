@@ -61,20 +61,19 @@ def calc_plot_dimensions(args, include_gp=False):
 
 def clear_unused_axs(axs, mapping, total):
     try:
-        s = axs.shape
         flat = axs.flat
     except AttributeError:
-        s = axs.get_geometry()
         flat = axs
 
-    if len(s) == 1 or s[0] == 1:
-        return 
-    num_rows, num_cols = s
-
     used_axes = [mapping(i) for i in range(total)]
-    for i in range(num_cols * num_rows):
+
+    cleared = False
+    for i in range(len(flat)):
         if i not in used_axes:
             flat[i].remove()
+            cleared = True
+    return cleared
+
 
 def numstr(s:str):
     s = float(s)
@@ -149,16 +148,16 @@ def pretty_label(var_name: str):
         return "$n$"
 
     if var_name == "train_num_batches":
-        return "training batches"
+        return "Training batches"
 
     if var_name == "vae_scale_factor":
-        return "scaling of VAE layer size"
+        return "Scaling of VAE layer size"
 
     if var_name == "num_epochs":
-        return "epochs"
+        return "Epochs"
     
     if var_name == "batch_size":
-        return "batch size"
+        return "Batch size"
 
     return var_name
 

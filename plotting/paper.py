@@ -26,6 +26,8 @@ from plotting.helpers import (
     align_right_backfill_with_gp,
     pretty_loss_fn_name,
 )
+from typing import Literal
+from .consts import *
 
 # ======================================================================================
 # Get training histories/etc.
@@ -79,6 +81,7 @@ def get_trained_draws(
     leaky_relu=True,
     filter_loss_fns=None,
     gp_builder=None,
+    prettify_titles=True,
 ):
     return get_trained_draws_from_args(
         load_args(str(code), str(args_count), exp_name),
@@ -89,6 +92,7 @@ def get_trained_draws(
         leaky_relu=leaky_relu,
         filter_loss_fns=filter_loss_fns,
         gp_builder=gp_builder,
+        prettify_titles=prettify_titles,
     )
 
 
@@ -101,6 +105,7 @@ def get_trained_draws_from_args(
     leaky_relu=True,
     filter_loss_fns=None,
     gp_builder=None,
+    prettify_titles=True,
 ):
     rng_key = random.PRNGKey(3)
     rng_key, rng_key_gp = random.split(rng_key, 2)
@@ -214,7 +219,7 @@ def get_trained_draws_from_args(
             decoder_params=decoder_params,
         )["f"]
 
-        draws.append((vae_draws, loss_fn))
+        draws.append((vae_draws, pretty_loss_fn_name(loss_fn) if prettify_titles else loss_fn))
 
     return draws, args
 
@@ -281,83 +286,11 @@ def plot_trained_draws(
     backfill=None,
     separate_gp=False,
     plot_range=None,
-    y_axis_label="$y=f_{VAE}(x)$",
-    legend_label="PriorVAE",
+    y_axis_label=None,
+    legend_pos: Literal["all", "first_col", "empty_space", "none"] = "all",
+    show_x_label=True,
     page_max_rows=3,
-):
-    assert num_cols * num_rows >= len(draws)
-
-    # add an extra row if asked, or if it won't fit in the grid
-    if separate_gp:
-        num_rows += 1
-
-    match backfill:
-        case None:
-            if separate_gp:
-                mapping = lambda i: 0 if i == 0 else i - 1 + num_cols
-            else:
-                mapping = lambda i: i
-        case "align_left":
-            mapping = align_left_backfill(len(draws), num_rows, num_cols)
-        case "align_right":
-            mapping = align_right_backfill_with_gp(len(draws), num_rows, num_cols)
-
-    figs = []
-    axes = onp.empty((0,))
-    print("sillt", page_max_rows)
-    if page_max_rows is not None:
-
-        iter_total = (num_rows // page_max_rows) * page_max_rows
-        print(num_rows, iter_total, num_rows // page_max_rows + 1)
-        for i in range(num_rows // page_max_rows + 1):
-            if i == num_rows // page_max_rows and iter_total == num_rows:
-                continue
-            nrows = num_rows - iter_total if i == num_rows // page_max_rows else page_max_rows
-            fig, a = plt.subplots(nrows=nrows, ncols=num_cols, figsize=(9, 6 * nrows / page_max_rows))
-            figs.append(fig)
-            axes = onp.concatenate((axes, a.flat))
-    else:
-        fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5))
-        figs.append(fig)
-        axes = axs.flat
-
-    clear_unused_axs(axes, mapping, len(draws) + 1)
-
-    for i, (draw, title) in enumerate(draws):
-        if plot_range is None:
-            plot_range_i = [None, None]
-        elif len(plot_range) > 2:
-            plot_range_i = plot_range[i]
-        else:
-            plot_range_i = plot_range
-        plot_draws_hpdi(
-            draw,
-            x,
-            pretty_loss_fn_name(title),
-            "$y=f_{GP}(x)$" if title == "gp" else y_axis_label,
-            "GP" if title == "gp" else legend_label,
-            ax=axes[mapping(i)],
-            _min=plot_range_i[0],
-            _max=plot_range_i[1],
-        )
-    for i, fig in enumerate(figs):
-        fig.tight_layout()
-
-        fig.savefig(f"./gen_plots/{save_file_name}_draws_{i}.pdf")
-
-
-def plot_trained_draws_compact(
-    draws,
-    x,
-    num_cols,
-    num_rows,
-    save_file_name,
-    backfill=None,
-    separate_gp=False,
-    plot_range=None,
-    y_axis_label="$y=f_{VAE}(x)$",
-    legend_label="PriorVAE",
-    page_max_rows=3,
+    landscape=True
 ):
     assert num_cols * num_rows >= len(draws)
 
@@ -386,47 +319,64 @@ def plot_trained_draws_compact(
             if i == num_rows // page_max_rows and iter_total == num_rows:
                 continue
             nrows = num_rows - iter_total if i == num_rows // page_max_rows else page_max_rows
-            # fig = plt.figure()
-            # fig.set_size_inches(9, 6 * nrows / page_max_rows)
-            # grid = AxesGrid(fig, (1, 1, 1), nrows_ncols=(nrows, num_cols), label_mode="L", share_all=True, axes_pad=0.12, aspect=False)
-
-            # figs.append(fig)
-            # axes = onp.concatenate((axes, grid.axes_all))
-            fig, a = plt.subplots(nrows=nrows, ncols=num_cols, figsize=(9, 6 * nrows / page_max_rows))
+            fig, a = plt.subplots(nrows=nrows, ncols=num_cols, figsize=(PAGE_HEIGHT if landscape else PAGE_WIDTH, (PAGE_WIDTH if landscape else PAGE_HEIGHT) * nrows / page_max_rows))
             figs.append(fig)
             axes = onp.concatenate((axes, a.flat))
+        flat = axes
     else:
-        fig, axs = plt.subplots(
-            nrows=num_rows, ncols=num_cols, figsize=(num_cols * 6, num_rows * 5), sharex="row", sharey="row"
-        )
+        fig, axes = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=LANDSCAPE if landscape else PORTRAIT)
         figs.append(fig)
-        axes = axs.flat
+        flat = axes.flat
 
-    clear_unused_axs(axes, mapping, len(draws) + 1)
+    cleared_any = clear_unused_axs(axes, mapping, len(draws) + 1)
 
     for i, (draw, title) in enumerate(draws):
         if plot_range is None:
             plot_range_i = [None, None]
-        elif len(plot_range) > 2:
+        elif len(plot_range) > 2 and isinstance(plot_range[0], list):
             plot_range_i = plot_range[i]
         else:
             plot_range_i = plot_range
+
+        if y_axis_label is None:
+            l = None
+        elif isinstance(y_axis_label, list):
+            if len(y_axis_label) == num_rows:
+                l = y_axis_label[mapping(i) // num_rows] if mapping(i) % num_cols == 0 else None
+
+            else:
+                assert len(y_axis_label) == len(draws)
+                l = y_axis_label[i]
+        else:
+            l = "$f_{GP}(x)$" if title == "GP" else y_axis_label
+
+        legend_args = {}
+        show_legend = False
+        if legend_pos == "all":
+            show_legend = True
+        elif legend_pos == "first_col" and mapping(i) % num_cols == 0:
+            show_legend = True
+        elif legend_pos == "empty_space" and cleared_any and i == 0:
+            show_legend = True
+            legend_args = {"bbox_to_anchor": (2.,0.5)}
+            
+ 
         plot_draws_hpdi(
             draw,
             x,
-            pretty_loss_fn_name(title),
-            (y_axis_label[i // num_cols] if isinstance(y_axis_label, list) else y_axis_label) if mapping(i) % num_cols == 0 else "",
-            None,
-            ax=axes[mapping(i)],
+            title,
+            l,
+            ax=flat[mapping(i)],
             _min=plot_range_i[0],
             _max=plot_range_i[1],
-            show_legend=mapping(i) % num_cols == 0,
-            show_x_label=False
+            show_x_label=show_x_label,
+            show_legend=show_legend,
+            legend_args=legend_args
         )
-        # if mapping(i) % num_cols != 0:
-        #    axes[mapping(i)].set
     for i, fig in enumerate(figs):
-        fig.tight_layout(pad=0.5)
+        print(i, fig)
+        fig.tight_layout(pad=0.25, w_pad=0.15)
+
         fig.savefig(f"./gen_plots/{save_file_name}_draws_{i}.pdf")
 
 

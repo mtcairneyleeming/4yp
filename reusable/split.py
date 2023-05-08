@@ -35,9 +35,9 @@ def generate_split_titles(obs_fracs, n, num_cv_splits):
 
     for i, frac in enumerate(obs_fracs):
         num_obs = int(frac * n)
-        titles_list.append(f"{num_obs} ({int(obs_fracs[i]*100)}%) randomly chosen observations ")
+        titles_list.append(f"{num_obs} ({int(obs_fracs[i]*100)}%)")
 
     for i in range(num_cv_splits):
-        titles_list.append(f"cross validation split {i+1}/{num_cv_splits}")
+        titles_list.append(f"split {i+1}/{num_cv_splits}")
 
     return titles_list

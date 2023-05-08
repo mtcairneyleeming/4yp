@@ -10,7 +10,9 @@ from matplotlib.colors import Normalize, SymLogNorm
 
 # matplotlib.rcParams["text.usetex"] = True
 # matplotlib.rcParams["font.family"] = "serif"
-matplotlib.rcParams["font.size"] = "9"
+matplotlib.rcParams["font.size"] = "18"
+
+from .consts import *
 
 
 def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
@@ -32,7 +34,17 @@ def plot_draws(draws, x_locs, title, ylabel, ax=None, save_path=None):
 
 
 def plot_draws_hpdi(
-    draws, x, title, ylabel, legend_label, ax=None, save_path=None, _min=-2, _max=2, show_legend=True, show_x_label=True
+    draws,
+    x,
+    title,
+    ylabel,
+    ax=None,
+    save_path=None,
+    _min=-2,
+    _max=2,
+    show_legend=True,
+    show_x_label=True,
+    legend_args={},
 ):
     if ax is None:
         fig = plt.figure()
@@ -45,10 +57,11 @@ def plot_draws_hpdi(
     ax.set_xlim([0, 1])
     ax.set_ylim([_min, _max])
     if show_x_label:
-        ax.set_xlabel("$x$", size=8)
-    ax.set_ylabel(ylabel, size=8)
-    ax.set_title(title, size=9)
-    ax.locator_params("x", nbins=6)
+        ax.set_xlabel("$x$", size=16)
+    ax.set_ylabel(ylabel, size=16)
+    ax.set_title(title, size=18)
+    ax.tick_params(labelsize=14)
+    ax.locator_params("x", nbins=3)
 
     lines_alpha = 0.1
     N_lines = 15
@@ -71,15 +84,17 @@ def plot_draws_hpdi(
     mean_handle = ax.plot(x, mean, label="mean")
 
     if show_legend:
-        ax.legend(
+        leg = ax.legend(
             loc=4,
             handles=[
                 matplotlib.lines.Line2D([], [], color="darkgreen", alpha=0.35, label="draws"),
                 hpdi_handle,
                 mean_handle[0],
             ],
-            prop={"size": 9},
+            prop={"size": 18},
+            **legend_args,
         )
+        leg.set_in_layout(False)
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches=None)
 
@@ -167,7 +182,7 @@ def plot_one_inference(
         ax.scatter(x_obs, y_obs, color="red", label="observed data", s=20)
     ax.set_title(title)
     if legend:
-        ax.legend(loc="upper right", prop={"size": 9})
+        ax.legend(loc="upper right", prop={"size": 15})
     ax.set_ylim([_min, _max])
     ax.set_xlabel("$x$")
     ax.set_ylabel(ylabel)
@@ -180,7 +195,7 @@ def compare_inference_steps(
     x, ground_truth, x_obss, y_obss, plain_prior_samples, inferred_priors_list, title="VAE", save_path=None
 ):
     fig = plt.figure()
-    fig.set_size_inches(6, 3)
+    fig.set_size_inches(PAGE_WIDTH, PAGE_WIDTH/2)
     axs = AxesGrid(
         fig,
         (1, 1, 1),
@@ -349,9 +364,9 @@ def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
     vae_mats = []
 
     for order in matrix_orders:
-        gp_mats.append(correlation(gp_draws, order))# jnp.log()
-        vae_mats.append(correlation(vae_draws, order)) # jnp.log()
-    vmin = 0.01#  min(jnp.nanmin(jnp.array(gp_mats)), jnp.nanmin(jnp.array(vae_mats)))
+        gp_mats.append(correlation(gp_draws, order))  # jnp.log()
+        vae_mats.append(correlation(vae_draws, order))  # jnp.log()
+    vmin = 0.01  #  min(jnp.nanmin(jnp.array(gp_mats)), jnp.nanmin(jnp.array(vae_mats)))
     vmax = max(jnp.nanmax(jnp.array(gp_mats)), jnp.nanmax(jnp.array(vae_mats)))
     print(vmin, vmax)
     fig = plt.figure()
@@ -373,7 +388,7 @@ def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
     cmap = plt.get_cmap("plasma")
     cmap.set_bad(color="red")
 
-    norm = SymLogNorm(vmin=vmin, vmax=vmax, linthresh=0.001) # Normalize(vmin=vmin, vmax=vmax) #
+    norm = SymLogNorm(vmin=vmin, vmax=vmax, linthresh=0.001)  # Normalize(vmin=vmin, vmax=vmax) #
 
     for k, order in enumerate(matrix_orders):
         plot_matrix(
@@ -393,24 +408,27 @@ def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
             ax=axs[len(matrix_orders) + k],
         )
 
-    #out.set_clim(vmin=0)
+    # out.set_clim(vmin=0)
 
-    axs.cbar_axes[0].colorbar(out) #, ticks=matplotlib.ticker.LinearLocator(6))
-    #axs.cbar_axes[0].set_yticklabels([f"{x:.3f}" for x in onp.exp(axs.cbar_axes[0].get_yticks())])
+    axs.cbar_axes[0].colorbar(out)  # , ticks=matplotlib.ticker.LinearLocator(6))
+    # axs.cbar_axes[0].set_yticklabels([f"{x:.3f}" for x in onp.exp(axs.cbar_axes[0].get_yticks())])
 
     return fig
 
 
-def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_relative=False, ax=None, save_path=None):
+def plot_graph_times(times, x, curve_labels, x_label, legend_title, title, is_relative=False, ax=None, save_path=None):
     x = onp.array(x)
+
+    created_ax = False
     if ax is None:
+        created_ax = True
         fig = plt.figure(figsize=(6, 4))
         ax = fig.add_subplot(111)
 
     for i, label in enumerate(curve_labels):
         data = times[i]
         nans = onp.isnan(data)
-        ax.plot(x[~nans], (times[i])[~nans], label=label)
+        ax.plot(x[~nans], data[~nans], label=label)
 
     ax.set_xlabel(x_label)
     ax.set_ylabel("time difference, minutes" if is_relative else "time, minutes")
@@ -418,11 +436,11 @@ def plot_times_graph(times, x, curve_labels, x_label, legend_title, title, is_re
     ax.legend(title=legend_title, loc="upper left")
 
     if is_relative:
-        ax.yaxis.set_major_formatter("{x:+.0f}")
+        ax.yaxis.set_major_formatter("{x:+}")
     else:
-        ax.yaxis.set_major_formatter("{x:.0f}")
+        ax.yaxis.set_major_formatter("{x}")
 
-    if save_path is not None:
+    if created_ax and save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
@@ -441,7 +459,9 @@ def plot_scores_graph(
     plot_range=None,
 ):
     x = onp.array(x)
+    created_ax = False
     if ax is None:
+        created_ax = True
         fig = plt.figure(figsize=(6, 4))
         ax = fig.add_subplot(111)
 
@@ -471,11 +491,11 @@ def plot_scores_graph(
     else:
         ax.yaxis.set_major_formatter(f"{{x:.{num_decimals}f}}")
 
-    if save_path is not None:
+    if created_ax and save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_times_matrix(mat, yticks, xticks, ylabel, xlabel, title, upper_limit=None, fig=None, save_path=None):
+def plot_matrix_time(mat, yticks, xticks, ylabel, xlabel, title, upper_limit=None, fig=None, save_path=None):
     if fig is None:
         fig = plt.figure()
 
