@@ -26,6 +26,8 @@ def latex_table(
     )
     if colouring_data is None:
         colouring_data = data
+        if len(colouring_data.shape) == 1:
+            colouring_data = colouring_data[None].T
     if colour_by_rank:
         ranks = rank_data_in_cols(colouring_data)
 
@@ -41,7 +43,7 @@ def latex_table(
         s.background_gradient(axis=None, cmap=cmap, gmap=colouring_data, vmin=vmin)
 
     if show_values:
-        s.format("{:.1e}")
+        s.format("{:4f}")
     else:
         s.format(" ")
     if rotateColHeader:
@@ -68,6 +70,8 @@ def html_table(
     )
     if colouring_data is None:
         colouring_data = data
+        if len(colouring_data.shape) == 1:
+            colouring_data = colouring_data[None].T
     if colour_by_rank:
         ranks = rank_data_in_cols(colouring_data)
 

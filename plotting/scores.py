@@ -5,12 +5,13 @@ import pandas
 from .helpers import pretty_loss_fn_name
 import numpy as onp
 
+
 def merge_dicts(a: dict, b: dict, expand=True):
     for key, val in b.items():
         if key in ["avg_gp_moments", "gp_moments"] and key in a:
             continue
-        if (len(val) > 0 and isinstance(val[0], str)) or (
-            len(val) > 0 and isinstance(val[0], list) and len(val[0]) > 0 and isinstance(val[0][0], str)
+        if (isinstance(val, list) and len(val) > 0 and isinstance(val[0], str)) or (
+            isinstance(val, list) and len(val) > 0 and isinstance(val[0], list) and len(val[0]) > 0 and isinstance(val[0][0], str)
         ):
             new = [val] if expand else val
             if key not in a:
@@ -56,11 +57,17 @@ def get_loss_scores_from_args(args, back_compat_file_names):
         scores["loss_fns"].append(loss_fn)
         s = load_scores(
             args["expcode"],
-            gen_file_name(args["expcode"], args, (args["experiment"] if "experiment" in args else "") + loss_fn, back_compat_file_names),
+            gen_file_name(
+                args["expcode"],
+                args,
+                (args["experiment"] if "experiment" in args else "") + loss_fn,
+                back_compat_file_names,
+            ),
         )
 
         s["mmd_kernels"] = [x[0] for x in s["mmd"]]
-        s["mmd"] = [x[1] for x in s["mmd"]]
+        s["mmd"] = jnp.array([x[1] for x in s["mmd"]])
+        s["mmd_avg"] = jnp.mean(s["mmd"])
         s["avg_vae_moments"] = [jnp.mean(x) for x in s["vae_moments"]]
         if "gp_moments" not in s:
             s["gp_moments"] = get_gp_moments()
@@ -73,20 +80,12 @@ def get_loss_scores_from_args(args, back_compat_file_names):
 
 
 def show_score_matrix(code, exp_name, args_count, back_compat_file_names, matrix_dims, x_labels, y_labels):
-    scores = get_loss_scores(code, exp_name, args_count,back_compat_file_names )
+    scores = get_loss_scores(code, exp_name, args_count, back_compat_file_names)
     data = jnp.mean(scores["mmd"], axis=1).reshape(matrix_dims)
 
     print(onp.reshape(scores["loss_fns"], matrix_dims))
 
-    html_table(
-        data,
-        pandas.Index(x_labels),
-        pandas.Index(y_labels),
-        None,
-        False,
-        True,
-        False
-    )
+    html_table(data, pandas.Index(x_labels), pandas.Index(y_labels), None, False, True, False)
     latex_table(
         data,
         pandas.Index(x_labels),
@@ -95,8 +94,9 @@ def show_score_matrix(code, exp_name, args_count, back_compat_file_names, matrix
         None,
         False,
         True,
-        False
+        False,
     )
+
 
 def show_loss_scores(code, exp_name, args_count):
 
@@ -115,7 +115,60 @@ def show_all_loss_scores(things, backcompat_prior_names=False):
     display_loss_scores(
         all_scores,
         code,
-        f"{'-'.join([str(x[0]) for x in things])}_{'-'.join([str(x[1]) for x in things])}_{'-'.join([str(x[2]) for x in things])}"
+        f"{'-'.join([str(x[0]) for x in things])}_{'-'.join([str(x[1]) for x in things])}_{'-'.join([str(x[2]) for x in things])}",
+    )
+
+
+def display_score(
+    scores,
+    score_access,
+    save_path,
+    use_extend_row_index=False,
+    colouring_data=None,
+    colour_by_rank=True,
+    rotate_col_headers=False,
+    override_col_labels=None,
+    vmin=None,
+    scale_values=None
+):
+
+    HTML_COL_LABELS = {"frobenius": [1, 2, 3, 4], "mmd": scores["mmd_kernels"][0], "mmd_avg": ["Average MMD score"]}
+    LATEX_COL_LABELS = {"frobenius": [1, 2, 3, 4], "mmd": [pretty_loss_fn_name(x) for x in scores["mmd_kernels"][0]], "mmd_avg": ["Average MMD score"]}
+
+    rows = (["GP"] if use_extend_row_index else []) + scores["loss_fns"]
+
+    latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in rows])
+    html_row_index = pandas.Index(rows)
+
+    data = scores[score_access]
+
+    if scale_values is not None:
+        data = data * scale_values
+
+
+    latex_col_index = pandas.Index(LATEX_COL_LABELS[score_access]if override_col_labels is None else override_col_labels, name="Loss functions")
+    html_col_index = pandas.Index(HTML_COL_LABELS[score_access] if override_col_labels is None else override_col_labels, name="Loss functions")
+
+    latex_table(
+        data,
+        latex_row_index,
+        latex_col_index,
+        save_path,
+        colour_by_rank=colour_by_rank,
+        show_values=True,
+        rotateColHeader=rotate_col_headers,
+        colouring_data=colouring_data,
+        vmin=vmin,
+    )
+    html_table(
+        data,
+        html_row_index,
+        html_col_index,
+        show_values=True,
+        colour_by_rank=colour_by_rank,
+        rotateColHeader=rotate_col_headers,
+        colouring_data=colouring_data,
+        vmin=vmin,
     )
 
 
@@ -130,14 +183,13 @@ def display_loss_scores(scores, out_file_code, file_name):
 
     std_range = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-
     plots = [
         # save_name/data access, title, html col labels, latex col labels, colouring_data
         (
-            (scores["frobenius"][:, :4],"frobenius"),
+            (scores["frobenius"][:, :4], "frobenius"),
             "$p$",
-            [1,2,3,4],
-            [1,2,3,4],
+            [1, 2, 3, 4],
+            [1, 2, 3, 4],
             html_row_index,
             latex_row_index,
         ),
@@ -150,7 +202,7 @@ def display_loss_scores(scores, out_file_code, file_name):
             latex_row_index,
         ),
         (
-            (jnp.mean(scores["mmd"], axis=1).reshape((len(html_row_index), 1)),"mmd_avg"),
+            (jnp.mean(scores["mmd"], axis=1).reshape((len(html_row_index), 1)), "mmd_avg"),
             "",
             ["Average MMD score"],
             ["Average MMD score"],
@@ -168,12 +220,14 @@ def display_loss_scores(scores, out_file_code, file_name):
             std_range,
             extended_html_row_index,
             extended_latex_row_index,
-            jnp.concatenate((
-                jnp.full((1, len(std_range)), -1000000),
-                jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(scores["avg_gp_moments"]))),
+            jnp.concatenate(
+                (
+                    jnp.full((1, len(std_range)), -1000000),
+                    jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(scores["avg_gp_moments"])),
+                ),
                 axis=0,
             ),
-            1
+            1,
         ),
     ]
 
@@ -186,9 +240,9 @@ def display_loss_scores(scores, out_file_code, file_name):
             data_access = data_access[1]
 
         latex_col_index = pandas.Index(latex_col_labels, name="Loss functions $\\backslash$ " + title)
-        html_col_index = pandas.Index(html_col_labels, name="Loss functions \\ " +title)
+        html_col_index = pandas.Index(html_col_labels, name="Loss functions \\ " + title)
         colouring_data = rest[0] if len(rest) > 0 else None
-        vmin = rest[1] if len(rest) >1 else None
+        vmin = rest[1] if len(rest) > 1 else None
 
         latex_table(
             data,
@@ -199,7 +253,7 @@ def display_loss_scores(scores, out_file_code, file_name):
             show_values=True,
             rotateColHeader=title == "MMD scores",
             colouring_data=colouring_data,
-            vmin=vmin
+            vmin=vmin,
         )
 
         latex_table(
@@ -211,7 +265,7 @@ def display_loss_scores(scores, out_file_code, file_name):
             show_values=True,
             rotateColHeader=title == "MMD scores",
             colouring_data=colouring_data,
-            vmin=vmin
+            vmin=vmin,
         )
 
         html_table(
@@ -222,5 +276,5 @@ def display_loss_scores(scores, out_file_code, file_name):
             colour_by_rank=True,
             rotateColHeader=title == "MMD scores",
             colouring_data=colouring_data,
-            vmin=vmin
+            vmin=vmin,
         )
