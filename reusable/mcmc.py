@@ -45,7 +45,7 @@ def decoder_mcmc(
 
         decoder_nn = Single_Decoder(hidden_dim1=hidden_dim1, hidden_dim2=hidden_dim2, out_dim=x.shape[0])
 
-        f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, x_z))
+        f = numpyro.deterministic("f", decoder_nn.apply(decoder_params, x_z)[1])
         sigma = numpyro.sample("noise", dist.HalfNormal(0.1))
         if y is None:  # during prediction
             numpyro.sample("y_pred", dist.Normal(f, sigma))
