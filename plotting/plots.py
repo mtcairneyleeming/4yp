@@ -105,13 +105,11 @@ def compare_draws(
 
     # plot results
     fig = plt.figure()
-    fig.set_size_inches(6, 3)
+    fig.set_size_inches(12, 6)
     axs = AxesGrid(fig, (1, 1, 1), nrows_ncols=(1, 2), label_mode="L", share_all=True, axes_pad=0.12, aspect=False)
 
-    plot_draws_hpdi(draws1, x, title1, ylabel1, legend_label1, axs[0], _min=_min, _max=_max, show_legend=False)
-    plot_draws_hpdi(draws2, x, title2, ylabel2, "", axs[1], _min=_min, _max=_max)
-
-    print(fig.get_size_inches())
+    plot_draws_hpdi(draws1, x, title1, ylabel1, axs[0], _min=_min, _max=_max, show_legend=False)
+    plot_draws_hpdi(draws2, x, title2, ylabel2, axs[1], _min=_min, _max=_max)
 
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
