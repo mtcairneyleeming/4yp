@@ -38,8 +38,8 @@ class VAE_Encoder(nn.Module):
             x = nn.relu(x)
         mean_z = nn.Dense(self.latent_dim, kernel_init=nn.initializers.normal(), name="ENC Mean")(x)
         c = nn.Dense(self.latent_dim, kernel_init=nn.initializers.normal(), name="ENC Cov")(x)
-        diag_cov = jnp.exp(c)
-        return mean_z, diag_cov
+        
+        return mean_z, c
 
 
 class VAE_Decoder(nn.Module):
