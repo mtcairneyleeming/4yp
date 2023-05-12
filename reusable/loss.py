@@ -14,7 +14,7 @@ def RCL(y, reconstructed_y, *args):
 
 @jax.jit
 def KLD(y, reconstructed_y, mean, log_sd):
-    """KL divergence between the distribution N(mean, log_sd) and a standard normal.
+    """KL divergence between the distribution N(mean, exp(log_sd)) and a standard normal.
     e.g. see https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Multivariate_normal_distributions"""
     return -0.5 * jnp.mean(1 + log_sd - jnp.power(mean, 2) - jnp.exp(log_sd))
 
