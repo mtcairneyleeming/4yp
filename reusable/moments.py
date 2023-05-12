@@ -46,27 +46,11 @@ def moment(order, sample):
             raise NotImplementedError()
          
 
-def covariance(sample):
-    """Treating the sample as args["n"] RVs:"""
-    centred = sample - sample_central_moment(1, sample)
-    variance = sample_central_moment(2, sample)
-    #return jnp.divide(centred.T @ centred, variance.T @ variance)
-    return centred.T @ centred
-
-def old_correlation_order(sample, order=2):
-    """ for the (centred) sample, calculate a standardised correlation coefficient 
-     for the given order.
-     e.g. for order=1, we calculate the Pearson correlation coef,
-     for order = 2, (balanced) cokurtosis
+def covariance(sample, order=1):
+    """ Calculate the Covariance matrix for X^order
     """
-    centred = sample - sample_central_moment(1, sample)
-    powered_vector = jnp.power(centred, order)
 
-    variance = jnp.mean(jnp.power(centred, 2), axis=0)
-    standard_dev = jnp.float_power(variance, 1 / 2.0)
-    # note sample_central_moment returns the variance, so we need standard deviation
-    scaling_term = jnp.power(standard_dev, order )
-    return jnp.divide(powered_vector.T @ powered_vector, scaling_term.T @ scaling_term)
+    return jnp.cov(jnp.power(sample - sample_central_moment(1, sample), order), rowvar=False)
 
 def correlation(sample, order=1):
     """ Calculate the Pearson correlation coeff for X^order
