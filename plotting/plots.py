@@ -289,12 +289,22 @@ def plot_moments(
 ):
     if ax is None:
         fig = plt.figure()
+        fig.set_size_inches(6,6)
         ax = fig.add_subplot(111)
 
     colours = [plt.cm.tab10(i) for i in range(len(moment_indices))]
 
     for i, m in enumerate(moments):
-        ax.plot(x_locs, m, color=colours[i], label=f"{moment_indices[i]}th moment")
+        id = moment_indices[i]
+        if id == 1:
+            suffix = "st"
+        elif id == 2:
+            suffix = "nd"
+        elif id == 3:
+            suffix = "rd"
+        else:
+            suffix = "th"
+        ax.plot(x_locs, m, color=colours[i], label=f"{id}{suffix} moment")
         if not use_legend:
             ax.text(x_locs[-1] + 0.01 * i, m[-1], s=f"{moment_indices[i]}", va="center", fontsize=14, color=colours[i])
 
@@ -303,9 +313,8 @@ def plot_moments(
             ax.plot(x_locs, m, color=colours[i], linestyle=":")
 
     ax.set_xlabel("$x$")
-    # ax.set_ylabel("$i$th moment")
     if use_legend:
-        ax.legend()
+        ax.legend(loc="upper right", prop={"size": 15})
     ax.set_yscale(scale)
     ax.set_title(title)
 
@@ -354,16 +363,18 @@ def plot_matrix(mat, title=None, ylabel=None, colour_norm=None, cmap=None, show_
     return plotted
 
 
-def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5]):
+def plot_correlation_grid(gp_draws, vae_draws, matrix_orders=[1, 2, 3, 4, 5], use_correlation=True):
     from plotting.plots import plot_matrix
-    from reusable.moments import correlation
+    from reusable.moments import correlation, covariance
 
     gp_mats = []
     vae_mats = []
 
+    f = correlation if use_correlation else covariance
+
     for order in matrix_orders:
-        gp_mats.append(correlation(gp_draws, order))  # jnp.log()
-        vae_mats.append(correlation(vae_draws, order))  # jnp.log()
+        gp_mats.append(f(gp_draws, order))  # jnp.log()
+        vae_mats.append(f(vae_draws, order))  # jnp.log()
     vmin = 0.01  #  min(jnp.nanmin(jnp.array(gp_mats)), jnp.nanmin(jnp.array(vae_mats)))
     vmax = max(jnp.nanmax(jnp.array(gp_mats)), jnp.nanmax(jnp.array(vae_mats)))
     print(vmin, vmax)

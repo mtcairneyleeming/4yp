@@ -29,18 +29,15 @@ def latex_table(
         if len(colouring_data.shape) == 1:
             colouring_data = colouring_data[None].T
     if colour_by_rank:
-        ranks = rank_data_in_cols(colouring_data)
+        colouring_data = rank_data_in_cols(colouring_data)
 
-    cmap = plt.get_cmap("Blues_r")
+    cmap = plt.get_cmap("Blues")
     cmap.set_bad(color="red")
     
-    cmap.set_under(color="white")
+    cmap.set_under(color="black")
 
     s = df.style
-    if colour_by_rank:
-        s.background_gradient(axis=None, cmap=cmap, gmap=ranks, vmin=vmin)
-    else:
-        s.background_gradient(axis=None, cmap=cmap, gmap=colouring_data, vmin=vmin)
+    s.background_gradient(axis=None, cmap=cmap, gmap=colouring_data, vmin=vmin)
 
     if show_values:
         s.format("{:4f}")
@@ -75,13 +72,11 @@ def html_table(
     if colour_by_rank:
         ranks = rank_data_in_cols(colouring_data)
 
-    cmap = plt.get_cmap("Blues_r")
+    cmap = plt.get_cmap("Blues")
     cmap.set_bad(color="red")
-    cmap.set_under(color="white")
+    cmap.set_under(color="black")
 
     s = df.style
-
-    s.highlight_min(axis=0,  props='font-weight:bold;')
 
     if colour_by_rank:
         s.background_gradient(axis=None, cmap=cmap, gmap=ranks, vmin=vmin)

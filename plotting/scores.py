@@ -1,5 +1,4 @@
 from reusable.util import load_args, load_scores, gen_file_name
-import jax.numpy as jnp
 from .tables import html_table, latex_table
 import pandas
 from .helpers import pretty_loss_fn_name
@@ -11,7 +10,11 @@ def merge_dicts(a: dict, b: dict, expand=True):
         if key in ["avg_gp_moments", "gp_moments"] and key in a:
             continue
         if (isinstance(val, list) and len(val) > 0 and isinstance(val[0], str)) or (
-            isinstance(val, list) and len(val) > 0 and isinstance(val[0], list) and len(val[0]) > 0 and isinstance(val[0][0], str)
+            isinstance(val, list)
+            and len(val) > 0
+            and isinstance(val[0], list)
+            and len(val[0]) > 0
+            and isinstance(val[0][0], str)
         ):
             new = [val] if expand else val
             if key not in a:
@@ -19,11 +22,11 @@ def merge_dicts(a: dict, b: dict, expand=True):
             else:
                 a[key] = a[key] + new
         else:
-            new = jnp.array(val)[None] if expand else jnp.array(val)
+            new = onp.array(val)[None] if expand else onp.array(val)
             if key not in a:
                 a[key] = new
             else:
-                a[key] = jnp.concatenate((a[key], new), axis=0)
+                a[key] = onp.concatenate((a[key], new), axis=0)
 
 
 def get_gp_moments():
@@ -33,10 +36,10 @@ def get_gp_moments():
         gen_file_name("16", args, args["experiment"] + args["loss_fn_names"][0], "B"),
     )
 
-    return jnp.array([jnp.mean(x) for x in scores["gp_moments"]])
+    return scores["gp_moments"]
 
 
-def get_loss_scores(code: int, exp_name, args_count: int, back_compat_file_names):
+def get_loss_scores(code: int, exp_name, args_count: int, back_compat_file_names, average_subset=None):
     """Given the raw data (which is v. oddly formatted), return a dictionary of lists:
     - loss_fns
     - frobenius: items: array of length num_orders_calced
@@ -45,11 +48,12 @@ def get_loss_scores(code: int, exp_name, args_count: int, back_compat_file_names
     - mmd_kernels: list of string names
     """
     args = load_args(str(code), str(args_count), exp_name)
-    return get_loss_scores_from_args(args, back_compat_file_names)
+    return get_loss_scores_from_args(args, back_compat_file_names, average_subset=average_subset)
 
 
-def get_loss_scores_from_args(args, back_compat_file_names):
-
+def get_loss_scores_from_args(args, back_compat_file_names, average_subset=None):
+    if average_subset is None:
+        average_subset = [0, args["n"]]
     scores = {"loss_fns": []}
     for loss_fn in args["loss_fn_names"]:
         if loss_fn == "gp":
@@ -66,22 +70,26 @@ def get_loss_scores_from_args(args, back_compat_file_names):
         )
 
         s["mmd_kernels"] = [x[0] for x in s["mmd"]]
-        s["mmd"] = jnp.array([x[1] for x in s["mmd"]])
-        s["mmd_avg"] = jnp.mean(s["mmd"])
-        s["avg_vae_moments"] = [jnp.mean(x) for x in s["vae_moments"]]
+        s["mmd"] = onp.array([x[1] for x in s["mmd"]])
+        s["mmd_avg"] = onp.mean(s["mmd"])
+
+        s["avg_vae_moments"] = [onp.mean(x[average_subset[0] : average_subset[1]]) for x in s["vae_moments"]]
         if "gp_moments" not in s:
             s["gp_moments"] = get_gp_moments()
 
-        s["avg_gp_moments"] = [jnp.mean(x) for x in s["gp_moments"]]
-        s["avg_moment_differences"] = jnp.abs(jnp.array(s["avg_vae_moments"]) - jnp.array(s["avg_gp_moments"]))
+        s["avg_gp_moments"] = [onp.mean(x[average_subset[0] : average_subset[1]]) for x in s["gp_moments"]]
+
+        s["avg_moment_differences"] = onp.abs(onp.array(s["avg_vae_moments"]) - onp.array(s["avg_gp_moments"]))
         merge_dicts(scores, s)
+
+    scores["avg_moments"] = onp.concatenate((scores["avg_gp_moments"], scores["avg_vae_moments"]))
 
     return scores
 
 
 def show_score_matrix(code, exp_name, args_count, back_compat_file_names, matrix_dims, x_labels, y_labels):
     scores = get_loss_scores(code, exp_name, args_count, back_compat_file_names)
-    data = jnp.mean(scores["mmd"], axis=1).reshape(matrix_dims)
+    data = onp.mean(scores["mmd"], axis=1).reshape(matrix_dims)
 
     print(onp.reshape(scores["loss_fns"], matrix_dims))
 
@@ -129,25 +137,51 @@ def display_score(
     rotate_col_headers=False,
     override_col_labels=None,
     vmin=None,
-    scale_values=None
+    scale_values=None,
+    prettify_row_labels=True,
+    override_row_index=None
 ):
+    m = 1
+    try:
+        m = len(scores[score_access][0])
+    except TypeError:
+        pass
+    r = range(1, m+1)
+    HTML_COL_LABELS = {
+        "frobenius": r,
+        "mmd": scores["mmd_kernels"][0],
+        "mmd_avg": ["Average MMD score"],
+        "avg_moments": r,
+    }
+    LATEX_COL_LABELS = {
+        "frobenius": r,
+        "mmd": [pretty_loss_fn_name(x) for x in scores["mmd_kernels"][0]],
+        "mmd_avg": ["Average MMD score"],
+        "avg_moments": r,
+    }
 
-    HTML_COL_LABELS = {"frobenius": [1, 2, 3, 4], "mmd": scores["mmd_kernels"][0], "mmd_avg": ["Average MMD score"]}
-    LATEX_COL_LABELS = {"frobenius": [1, 2, 3, 4], "mmd": [pretty_loss_fn_name(x) for x in scores["mmd_kernels"][0]], "mmd_avg": ["Average MMD score"]}
+    
 
-    rows = (["GP"] if use_extend_row_index else []) + scores["loss_fns"]
-
-    latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in rows])
-    html_row_index = pandas.Index(rows)
+    if override_row_index is None:
+        rows = (["GP"] if use_extend_row_index else []) + scores["loss_fns"]
+        latex_row_index = pandas.Index([pretty_loss_fn_name(x) for x in rows] if prettify_row_labels else rows)
+        html_row_index = pandas.Index(rows)
+    else:
+        latex_row_index = override_row_index
+        html_row_index = override_row_index
+        
 
     data = scores[score_access]
 
     if scale_values is not None:
         data = data * scale_values
 
-
-    latex_col_index = pandas.Index(LATEX_COL_LABELS[score_access]if override_col_labels is None else override_col_labels, name="Loss functions")
-    html_col_index = pandas.Index(HTML_COL_LABELS[score_access] if override_col_labels is None else override_col_labels, name="Loss functions")
+    latex_col_index = pandas.Index(
+        LATEX_COL_LABELS[score_access] if override_col_labels is None else override_col_labels, name="Loss functions"
+    )
+    html_col_index = pandas.Index(
+        HTML_COL_LABELS[score_access] if override_col_labels is None else override_col_labels, name="Loss functions"
+    )
 
     latex_table(
         data,
@@ -202,7 +236,7 @@ def display_loss_scores(scores, out_file_code, file_name):
             latex_row_index,
         ),
         (
-            (jnp.mean(scores["mmd"], axis=1).reshape((len(html_row_index), 1)), "mmd_avg"),
+            (onp.mean(scores["mmd"], axis=1).reshape((len(html_row_index), 1)), "mmd_avg"),
             "",
             ["Average MMD score"],
             ["Average MMD score"],
@@ -212,7 +246,7 @@ def display_loss_scores(scores, out_file_code, file_name):
         ("avg_moment_differences", "$p$", std_range, std_range, html_row_index, latex_row_index),
         (
             (
-                jnp.concatenate((scores["avg_gp_moments"], scores["avg_vae_moments"]), axis=0),
+                onp.concatenate((scores["avg_gp_moments"], scores["avg_vae_moments"]), axis=0),
                 "avg_vae_moments_ranked",
             ),
             "$p$",
@@ -220,10 +254,10 @@ def display_loss_scores(scores, out_file_code, file_name):
             std_range,
             extended_html_row_index,
             extended_latex_row_index,
-            jnp.concatenate(
+            onp.concatenate(
                 (
-                    jnp.full((1, len(std_range)), -1000000),
-                    jnp.abs(jnp.array(scores["avg_vae_moments"]) - jnp.array(scores["avg_gp_moments"])),
+                    onp.full((1, len(std_range)), -1000000),
+                    onp.abs(onp.array(scores["avg_vae_moments"]) - onp.array(scores["avg_gp_moments"])),
                 ),
                 axis=0,
             ),
